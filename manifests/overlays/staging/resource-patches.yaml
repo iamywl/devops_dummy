@@ -9,6 +9,13 @@ spec:
       labels:
         environment: staging
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              environment: staging
       containers:
         - name: "*"
           resources:
@@ -16,5 +23,5 @@ spec:
               cpu: 100m
               memory: 128Mi
             limits:
-              cpu: 400m
+              cpu: 500m
               memory: 512Mi

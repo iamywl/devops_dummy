@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: any
 spec:
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
@@ -16,3 +16,12 @@ spec:
           labelSelector:
             matchLabels:
               environment: prod
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    environment: prod
+                topologyKey: kubernetes.io/hostname

@@ -1,4 +1,5 @@
 # KEDA ScaledObject - notification-worker scales based on RabbitMQ queue depth
+# 3개 큐 (order.created, order.shipped, order.cancelled) 모니터링
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -9,14 +10,42 @@ metadata:
 spec:
   scaleTargetRef:
     name: prod-notification-worker
-  pollingInterval: 15
+  pollingInterval: 10
   cooldownPeriod: 60
   minReplicaCount: 1
-  maxReplicaCount: 5
+  maxReplicaCount: 10
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - type: Pods
+              value: 3
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 120
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
   triggers:
     - type: rabbitmq
       metadata:
         host: "amqp://guest:guest@prod-rabbitmq.ecommerce.svc.cluster.local:5672"
         queueName: "order.created"
+        mode: QueueLength
+        value: "5"
+    - type: rabbitmq
+      metadata:
+        host: "amqp://guest:guest@prod-rabbitmq.ecommerce.svc.cluster.local:5672"
+        queueName: "order.shipped"
+        mode: QueueLength
+        value: "5"
+    - type: rabbitmq
+      metadata:
+        host: "amqp://guest:guest@prod-rabbitmq.ecommerce.svc.cluster.local:5672"
+        queueName: "order.cancelled"
         mode: QueueLength
         value: "5"

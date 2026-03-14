@@ -4,7 +4,7 @@ metadata:
   name: order-service-pdb
   namespace: ecommerce
 spec:
-  minAvailable: 1
+  minAvailable: 2
   selector:
     matchLabels:
       app: order-service
@@ -16,7 +16,7 @@ metadata:
   name: product-service-pdb
   namespace: ecommerce
 spec:
-  minAvailable: 1
+  minAvailable: 2
   selector:
     matchLabels:
       app: product-service
@@ -28,10 +28,34 @@ metadata:
   name: cart-service-pdb
   namespace: ecommerce
 spec:
-  minAvailable: 1
+  minAvailable: 2
   selector:
     matchLabels:
       app: cart-service
+      environment: prod
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: ecommerce
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: user-service
+      environment: prod
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: review-service-pdb
+  namespace: ecommerce
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: review-service
       environment: prod
 ---
 apiVersion: policy/v1
@@ -44,4 +68,28 @@ spec:
   selector:
     matchLabels:
       app: nginx-static
+      environment: prod
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgresql-pdb
+  namespace: ecommerce
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      environment: prod
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rabbitmq-pdb
+  namespace: ecommerce
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
       environment: prod

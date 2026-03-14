@@ -55,14 +55,16 @@
   │  │ → Prometheus, Grafana, ArgoCD, Jaeger, Loki                    │   │ │
   │  └─────────────────────────────────────────────────────────────────┘   │ │
   │                                                                        │ │
-  │  ┌──────────────────┐ ┌──────────────────┐ ┌────────────────────────┐ │ │
-  │  │ DEV Cluster       │ │ STAGING Cluster  │ │ PROD Cluster           │ │ │
-  │  │ master(2C/4G)     │ │ master(2C/4G)    │ │ master(2C/3G)          │ │ │
-  │  │ worker1(2C/8G)    │ │ worker1(2C/8G)   │ │ worker1(2C/8G)         │ │ │
-  │  │ = 4C/12G          │ │ = 4C/12G         │ │ worker2(2C/8G)         │ │ │
-  │  │ → 단일 레플리카    │ │ → 2 레플리카     │ │ = 6C/19G               │ │ │
-  │  │ → Istio 활성화    │ │ → prod 유사 설정  │ │ → HA + HPA + KEDA     │ │ │
-  │  └──────────────────┘ └──────────────────┘ └────────────────────────┘ │ │
+  │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────────────┐│ │
+  │  │ DEV Cluster       │ │ STAGING Cluster  │ │ PROD Cluster             ││ │
+  │  │ master(2C/4G)     │ │ master(2C/4G)    │ │ master(2C/4G)            ││ │
+  │  │ worker1(2C/8G)    │ │ worker1(3C/10G)  │ │ worker1(3C/12G)          ││ │
+  │  │ = 4C/12G          │ │ worker2(3C/10G)  │ │ worker2(3C/12G)          ││ │
+  │  │ → 단일 레플리카    │ │ = 8C/24G         │ │ worker3(3C/12G)          ││ │
+  │  │ → Istio 활성화    │ │ → 2 레플리카     │ │ worker4(2C/8G) [데이터]  ││ │
+  │  │                   │ │ → prod 유사 설정  │ │ = 13C/48G                ││ │
+  │  │                   │ │ → 토폴로지분산    │ │ → HA+HPA+KEDA+PDB       ││ │
+  │  └──────────────────┘ └──────────────────┘ └──────────────────────────┘│ │
   └────────────────────────────────────────────────────────────────────────┘ │
                     └─────────────────────────────────────────────────────────┘
 ```
@@ -178,53 +180,58 @@
 
 ### 3.2 VM 리소스 배분 상세
 
-총 **10개 VM**, vCPU 합계 **21 cores**, RAM 합계 **67 GB**
+총 **13개 VM**, vCPU 합계 **32 cores**, RAM 합계 **108 GB**
 
-> 호스트 16코어에 vCPU 21개를 할당하므로 약 1.3:1 오버커밋.
+> 호스트 16코어에 vCPU 32개를 할당하므로 약 2:1 오버커밋.
 > Tart는 Apple Virtualization Framework 기반이라 경량이고,
 > 모든 VM을 동시에 100% 사용하는 경우는 드물기 때문에 실용적으로 문제없음.
-> RAM은 128GB 중 67GB 사용으로 여유 있음 (호스트 OS + Docker 빌드용으로 ~60GB 확보).
+> RAM은 128GB 중 108GB 사용. 전체 클러스터 동시 기동 시 호스트 여유 ~20GB.
+> 리소스 절약이 필요하면 dev/staging 중 하나를 중지하고 운영 가능.
 
 | 클러스터 | VM 이름 | Role | vCPU | RAM | Disk | 용도 |
 |---------|---------|------|------|-----|------|------|
 | **platform** | platform-master | master | 2 | 4 GB | 20 GB | K8s control plane |
 | | platform-worker1 | worker | 3 | 12 GB | 20 GB | Prometheus, Grafana, ArgoCD |
-| | platform-worker2 | worker | 2 | 8 GB | 20 GB | Jaeger, Loki |
+| | platform-worker2 | worker | 2 | 8 GB | 20 GB | Jaeger, Loki, Scouter |
 | **dev** | dev-master | master | 2 | 4 GB | 20 GB | K8s control plane |
 | | dev-worker1 | worker | 2 | 8 GB | 20 GB | 앱 전체 (단일 레플리카) |
 | **staging** | staging-master | master | 2 | 4 GB | 20 GB | K8s control plane |
-| | staging-worker1 | worker | 2 | 8 GB | 20 GB | 앱 전체 (2 레플리카) |
-| **prod** | prod-master | master | 2 | 3 GB | 20 GB | K8s control plane |
-| | prod-worker1 | worker | 2 | 8 GB | 20 GB | 앱 서비스 (HA) |
-| | prod-worker2 | worker | 2 | 8 GB | 20 GB | 앱 서비스 (HA) |
-| **합계** | | | **21** | **67 GB** | **200 GB** | |
+| | staging-worker1 | worker | 3 | 10 GB | 20 GB | 앱 서비스 (2 레플리카) |
+| | staging-worker2 | worker | 3 | 10 GB | 20 GB | 앱 서비스 (2 레플리카, 스프레드) |
+| **prod** | prod-master | master | 2 | 4 GB | 20 GB | K8s control plane |
+| | prod-worker1 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, HPA) |
+| | prod-worker2 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, HPA) |
+| | prod-worker3 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, 스케일아웃 버퍼) |
+| | prod-worker4 | worker | 2 | 8 GB | 20 GB | 데이터 티어 (DB, MQ, Cache) |
+| **합계** | | | **32** | **108 GB** | **260 GB** | |
 
 ### 3.3 리소스 운영 가이드
 
 ```
 VM 전체 동시 기동 시:
-  ├── 호스트 RAM 사용: 67GB / 128GB (52%) → 안전
-  ├── 호스트 CPU 사용: 21 vCPU / 16 cores (오버커밋 1.3x) → 허용 범위
-  └── 호스트 Disk 사용: 200GB / 835GB 여유 (24%) → 충분
+  ├── 호스트 RAM 사용: 108GB / 128GB (84%) → 운영 가능 (호스트 OS ~16GB 여유)
+  ├── 호스트 CPU 사용: 32 vCPU / 16 cores (오버커밋 2x) → 허용 범위
+  └── 호스트 Disk 사용: 260GB / 835GB 여유 (31%) → 충분
 
-리소스가 부족할 경우:
-  ├── dev + prod만 기동 (staging 중지): 10C/35G
-  ├── dev만 기동 (개발 단계): 4C/12G
-  └── platform + 하나의 앱 클러스터만 기동: 11C/36G
+권장 운영 모드:
+  ├── 풀 프로덕션: platform + prod (7C+11C = 18C/60G) → 실제 운영 시뮬레이션
+  ├── 개발 + 운영: platform + dev + prod (18C+4C = 22C/72G)
+  ├── 전체 파이프라인: 전체 13VM 기동 (32C/108G) → 부하 테스트 시
+  └── 최소 기동: dev만 (4C/12G) → 앱 개발/디버깅
 ```
 
 ### 3.4 Pod 리소스 버짓 (서비스당)
 
 | 서비스 | CPU req/limit | Memory req/limit | prod 레플리카 |
 |--------|--------------|-----------------|--------------|
-| nginx-static | 50m / 200m | 64Mi / 128Mi | 2 |
+| nginx-static | 50m / 200m | 64Mi / 128Mi | 2-6 (HPA) |
 | apache-legacy | 50m / 200m | 64Mi / 128Mi | 1 |
-| order-service (Tomcat) | 100m / 500m | 256Mi / 512Mi | 2-6 (HPA) |
-| product-service (Node.js) | 100m / 400m | 128Mi / 256Mi | 2-6 (HPA) |
-| cart-service (Go) | 50m / 300m | 64Mi / 128Mi | 2-4 (HPA) |
-| user-service (FastAPI) | 50m / 300m | 128Mi / 256Mi | 2-4 (HPA) |
-| review-service (Rust) | 30m / 200m | 32Mi / 64Mi | 2-4 (HPA) |
-| notification-worker | 50m / 200m | 128Mi / 256Mi | 1-5 (KEDA) |
+| order-service (Tomcat) | 100m / 500m | 256Mi / 512Mi | 3-10 (HPA) |
+| product-service (Node.js) | 100m / 400m | 128Mi / 256Mi | 3-10 (HPA) |
+| cart-service (Go) | 50m / 300m | 64Mi / 128Mi | 3-8 (HPA) |
+| user-service (FastAPI) | 50m / 300m | 128Mi / 256Mi | 3-8 (HPA) |
+| review-service (Rust) | 30m / 200m | 32Mi / 64Mi | 2-6 (HPA) |
+| notification-worker | 50m / 200m | 128Mi / 256Mi | 1-10 (KEDA) |
 | haproxy | 50m / 200m | 64Mi / 128Mi | 1 |
 | elasticsearch | 200m / 1000m | 512Mi / 1Gi | 1 |
 | fluentd (DaemonSet) | 50m / 200m | 128Mi / 256Mi | 노드당 1 |
@@ -235,8 +242,9 @@ VM 전체 동시 기동 시:
 | rabbitmq | 100m / 300m | 256Mi / 512Mi | 1 |
 | **합계 (단일 레플리카)** | **~1.3** | **~2.5 GB** | |
 
-> 워커 노드 1개 (2 CPU, 8 GB)에 단일 레플리카 기준 전체 앱이 충분히 들어감.
-> prod에서 HPA가 스케일아웃하면 2개 워커 노드에 걸쳐 분산됨.
+> prod 기준: 기본 3 레플리카 × 7 WAS 서비스 = 21 pods (+ 데이터 티어 4 pods).
+> HPA 풀 스케일아웃 시 최대 ~58 pods. 4개 워커 노드 (11C/44G)에 분산.
+> topologySpreadConstraints + podAntiAffinity로 노드 간 균등 분배.
 
 ---
 
@@ -376,9 +384,9 @@ devops_dummpy/
 │   │   │   └── staging-config.yaml        #   LOG_LEVEL: info
 │   │   └── prod/
 │   │       ├── kustomization.yaml         #   namePrefix: prod-
-│   │       ├── resource-patches.yaml      #   replicas: 2, topologySpread
-│   │       ├── hpa.yaml                   #   HPA 3개 (order, product, cart)
-│   │       ├── pdb.yaml                   #   PDB 4개 (minAvailable: 1)
+│   │       ├── resource-patches.yaml      #   replicas: 3, topologySpread, podAntiAffinity
+│   │       ├── hpa.yaml                   #   HPA 7개 (전 WAS + nginx, max 10)
+│   │       ├── pdb.yaml                   #   PDB 8개 (critical: minAvailable 2)
 │   │       ├── keda-scalers.yaml          #   KEDA ScaledObject (notification-worker)
 │   │       └── prod-config.yaml           #   LOG_LEVEL: warn
 │   │
@@ -489,12 +497,12 @@ tart --version && kubectl version --client && helm version && k6 version
 ### 6.3 사전 인프라 구축 (tart-infra 필요)
 
 > 이 프로젝트는 [`tart-infra`](../tart-infra/) 프로젝트로 구축한 K8s 클러스터 위에서 동작합니다.
-> tart-infra가 제공하는 것: Tart VM 10개, kubeadm K8s 4개 클러스터, Cilium CNI, Prometheus, Grafana, ArgoCD, Istio
+> tart-infra가 제공하는 것: Tart VM 13개, kubeadm K8s 4개 클러스터, Cilium CNI, Prometheus, Grafana, ArgoCD, Istio
 
 ```bash
 # tart-infra 클러스터가 정상인지 확인
 cd ../tart-infra
-tart list                              # 10개 VM 확인
+tart list                              # 13개 VM 확인
 kubectl --kubeconfig=kubeconfig/dev.yaml get nodes    # dev 클러스터 확인
 kubectl --kubeconfig=kubeconfig/prod.yaml get nodes   # prod 클러스터 확인
 ```
@@ -724,15 +732,21 @@ MAU 10,000,000명
 
 | 방식 | 대상 | 트리거 | 범위 |
 |------|------|--------|------|
-| **HPA** | order-service | CPU > 50% | 2 → 6 레플리카 |
-| **HPA** | product-service | CPU > 50% | 2 → 6 레플리카 |
-| **HPA** | cart-service | CPU > 50% | 2 → 4 레플리카 |
-| **KEDA** | notification-worker | RabbitMQ 큐 > 5개 | 1 → 5 레플리카 |
-| **PDB** | 모든 WAS + Nginx | - | minAvailable: 1 |
+| **HPA** | order-service | CPU > 50%, Mem > 70% | 3 → 10 레플리카 |
+| **HPA** | product-service | CPU > 50%, Mem > 70% | 3 → 10 레플리카 |
+| **HPA** | cart-service | CPU > 50% | 3 → 8 레플리카 |
+| **HPA** | user-service | CPU > 50%, Mem > 70% | 3 → 8 레플리카 |
+| **HPA** | review-service | CPU > 50% | 2 → 6 레플리카 |
+| **HPA** | nginx-static | CPU > 60% | 2 → 6 레플리카 |
+| **KEDA** | notification-worker | RabbitMQ 큐 > 5개 (3개 큐) | 1 → 10 레플리카 |
+| **PDB** | order/product/cart/user | - | minAvailable: 2 |
+| **PDB** | review/nginx/postgresql/rabbitmq | - | minAvailable: 1 |
 
 HPA 스케일링 정책:
-- **Scale Up**: 30초 안정화, 60초마다 최대 2 Pod 추가
+- **Scale Up**: 30초 안정화, 60초마다 최대 3 Pod 또는 50% 증가 (큰 쪽 적용)
 - **Scale Down**: 300초 안정화 (급격한 축소 방지), 120초마다 1 Pod 감소
+- **topologySpreadConstraints**: maxSkew 1, DoNotSchedule (prod)
+- **podAntiAffinity**: 같은 노드에 동일 서비스 배치 최소화
 
 ### 9.2 서킷브레이커 (Istio)
 
