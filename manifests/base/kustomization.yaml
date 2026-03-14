@@ -30,5 +30,7 @@ resources:
   - loadbalancer/haproxy.yaml
   # Logging (EFK)
   - logging/efk-stack.yaml
+  # Monitoring (Scouter APM)
+  - monitoring/scouter.yaml
   # Ingress
   - ingress/ingress-routes.yaml

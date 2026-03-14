@@ -19,6 +19,10 @@ const productSchema = new mongoose.Schema(
     imageUrl: { type: String, default: "" },
     stock: { type: Number, default: 0, min: 0 },
     reviews: [reviewSchema],
+    ratings: {
+      average: { type: Number, default: 0 },
+      count: { type: Number, default: 0 },
+    },
   },
   {
     timestamps: true,
@@ -26,6 +30,8 @@ const productSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+productSchema.index({ name: "text", description: "text" });
 
 productSchema.virtual("averageRating").get(function () {
   if (!this.reviews || this.reviews.length === 0) return 0;

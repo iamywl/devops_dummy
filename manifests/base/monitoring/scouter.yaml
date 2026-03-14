@@ -1,0 +1,283 @@
+# Scouter APM - Collector Server
+# Java 기반 오픈소스 APM으로 order-service(Tomcat/Spring Boot) 모니터링
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scouter-config
+  namespace: ecommerce
+  labels:
+    app: scouter-collector
+data:
+  scouter.conf: |
+    # Scouter Collector Server Configuration
+    net_tcp_listen_port=6100
+    net_udp_listen_port=6100
+    net_http_port=6180
+
+    # DB 저장 경로
+    db_dir=/data/scouter
+    log_dir=/data/scouter/logs
+
+    # 데이터 보존 기간 (일)
+    mgr_purge_profile_keep_days=2
+    mgr_purge_xlog_keep_days=5
+    mgr_purge_counter_keep_days=7
+
+    # 성능 설정
+    xlog_queue_size=2000
+    profile_queue_size=1000
+
+    # 알림 설정
+    alert_perm_warning_pct=90
+    alert_cpu_warning_pct=80
+    alert_cpu_fatal_pct=95
+    alert_disk_warning_pct=85
+
+  scouter-agent.conf: |
+    # Scouter Java Agent Configuration (order-service에 부착)
+    net_collector_ip=scouter-collector
+    net_collector_tcp_port=6100
+    net_collector_udp_port=6100
+
+    # 객체 식별
+    obj_type=springboot
+    obj_name_auto_pid_enabled=true
+
+    # HTTP 요청 추적
+    trace_http_client_ip_header_key=X-Forwarded-For
+    profile_http_header_enabled=true
+    profile_http_parameter_enabled=true
+    profile_spring_controller_method_parameter_enabled=true
+
+    # SQL 추적
+    profile_sql_enabled=true
+    trace_sql_parameter_enabled=true
+
+    # 응답시간 임계값 (ms)
+    xlog_sampling_step1=100
+    xlog_sampling_step2=500
+    xlog_sampling_step3=1000
+    xlog_sampling_over=2000
+    xlog_sampling_on=false
+
+    # 메서드 프로파일링
+    hook_method_patterns=com.devops.order.service.*,com.devops.order.controller.*
+    hook_method_access_public_enabled=true
+    hook_method_access_protected_enabled=false
+
+    # GC 모니터링
+    alert_gc_time_ms=500
+
+    # 액티브 서비스 모니터링
+    counter_enabled=true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scouter-collector
+  namespace: ecommerce
+  labels:
+    app: scouter-collector
+    tier: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scouter-collector
+  template:
+    metadata:
+      labels:
+        app: scouter-collector
+        tier: monitoring
+    spec:
+      initContainers:
+        - name: download-scouter
+          image: eclipse-temurin:17-jre-alpine
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache curl unzip &&
+              SCOUTER_VERSION="2.20.0" &&
+              curl -fsSL "https://github.com/scouter-project/scouter/releases/download/v${SCOUTER_VERSION}/scouter-all-${SCOUTER_VERSION}.tar.gz" \
+                -o /tmp/scouter.tar.gz &&
+              tar xzf /tmp/scouter.tar.gz -C /opt/ &&
+              cp /config/scouter.conf /opt/scouter/server/conf/scouter.conf &&
+              echo "Scouter ${SCOUTER_VERSION} downloaded"
+          volumeMounts:
+            - name: scouter-install
+              mountPath: /opt/scouter
+            - name: scouter-config
+              mountPath: /config
+      containers:
+        - name: scouter-collector
+          image: eclipse-temurin:17-jre-alpine
+          command:
+            - sh
+            - -c
+            - |
+              cd /opt/scouter/server &&
+              java -Xmx512m -Xms256m \
+                -cp ./scouter-server-boot.jar \
+                scouter.boot.Boot ./lib
+          ports:
+            - containerPort: 6100
+              name: tcp
+              protocol: TCP
+            - containerPort: 6100
+              name: udp
+              protocol: UDP
+            - containerPort: 6180
+              name: http
+          env:
+            - name: JAVA_OPTS
+              value: "-Xmx512m -Xms256m"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          livenessProbe:
+            tcpSocket:
+              port: 6100
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 6100
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          volumeMounts:
+            - name: scouter-install
+              mountPath: /opt/scouter
+            - name: scouter-data
+              mountPath: /data/scouter
+      volumes:
+        - name: scouter-install
+          emptyDir: {}
+        - name: scouter-config
+          configMap:
+            name: scouter-config
+        - name: scouter-data
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scouter-collector
+  namespace: ecommerce
+  labels:
+    app: scouter-collector
+spec:
+  ports:
+    - port: 6100
+      targetPort: 6100
+      name: tcp
+      protocol: TCP
+    - port: 6100
+      targetPort: 6100
+      name: udp
+      protocol: UDP
+    - port: 6180
+      targetPort: 6180
+      name: http
+  selector:
+    app: scouter-collector
+---
+# Scouter WebApp (Paper UI)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scouter-webapp
+  namespace: ecommerce
+  labels:
+    app: scouter-webapp
+    tier: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scouter-webapp
+  template:
+    metadata:
+      labels:
+        app: scouter-webapp
+        tier: monitoring
+    spec:
+      initContainers:
+        - name: download-webapp
+          image: eclipse-temurin:17-jre-alpine
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache curl &&
+              SCOUTER_VERSION="2.20.0" &&
+              curl -fsSL "https://github.com/scouter-project/scouter/releases/download/v${SCOUTER_VERSION}/scouter-all-${SCOUTER_VERSION}.tar.gz" \
+                -o /tmp/scouter.tar.gz &&
+              tar xzf /tmp/scouter.tar.gz -C /opt/ &&
+              echo "Scouter WebApp downloaded"
+          volumeMounts:
+            - name: webapp-install
+              mountPath: /opt/scouter
+      containers:
+        - name: scouter-webapp
+          image: eclipse-temurin:17-jre-alpine
+          command:
+            - sh
+            - -c
+            - |
+              cd /opt/scouter/webapp &&
+              java -Xmx256m \
+                -Dnet_collector_ip=scouter-collector \
+                -Dnet_collector_tcp_port=6100 \
+                -Dnet_http_port=6188 \
+                -jar scouter-webapp.jar
+          ports:
+            - containerPort: 6188
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 6188
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 6188
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          volumeMounts:
+            - name: webapp-install
+              mountPath: /opt/scouter
+      volumes:
+        - name: webapp-install
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scouter-webapp
+  namespace: ecommerce
+  labels:
+    app: scouter-webapp
+spec:
+  type: NodePort
+  ports:
+    - port: 6188
+      targetPort: 6188
+      nodePort: 30618
+      name: http
+  selector:
+    app: scouter-webapp

@@ -57,8 +57,10 @@ spec:
                 secretKeyRef:
                   name: rabbitmq-credentials
                   key: password
+            - name: SCOUTER_ENABLED
+              value: "true"
             - name: JAVA_OPTS
-              value: "-Xms256m -Xmx512m -XX:+UseG1GC"
+              value: "-Xms256m -Xmx512m -XX:+UseG1GC -javaagent:/app/scouter-agent/scouter.agent.jar -Dscouter.config=/app/scouter-agent/conf/scouter.conf -Dobj_name=order-service -Dnet_collector_ip=scouter-collector -Dnet_collector_tcp_port=6100 -Dnet_collector_udp_port=6100"
           resources:
             requests:
               cpu: 100m

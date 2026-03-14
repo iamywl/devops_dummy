@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const Redis = require("ioredis");
 const promClient = require("prom-client");
 const createProductsRouter = require("./routes/products");
+const Product = require("./models/Product");
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -100,6 +101,30 @@ app.get("/metrics", async (_req, res) => {
 app.use("/api/products", createProductsRouter(redis));
 
 // ---------------------------------------------------------------------------
+// Seed data
+// ---------------------------------------------------------------------------
+const SAMPLE_PRODUCTS = [
+  { name: "MacBook Pro M4", description: "Apple laptop with M4 chip, 16GB RAM, 512GB SSD", price: 1999, category: "computers", stock: 75, imageUrl: "", ratings: { average: 4.8, count: 342 } },
+  { name: "iPhone 16 Pro", description: "Latest iPhone with A18 Pro chip and titanium design", price: 1199, category: "electronics", stock: 150, imageUrl: "", ratings: { average: 4.7, count: 891 } },
+  { name: "Sony WH-1000XM5", description: "Premium noise-cancelling wireless headphones", price: 349, category: "audio", stock: 200, imageUrl: "", ratings: { average: 4.6, count: 1253 } },
+  { name: "Samsung Galaxy S24", description: "Samsung flagship smartphone with Galaxy AI features", price: 899, category: "electronics", stock: 120, imageUrl: "", ratings: { average: 4.5, count: 567 } },
+  { name: "iPad Air", description: "Lightweight tablet with M2 chip and 10.9-inch display", price: 599, category: "tablets", stock: 100, imageUrl: "", ratings: { average: 4.7, count: 430 } },
+  { name: "AirPods Pro", description: "Active noise cancellation earbuds with adaptive audio", price: 249, category: "accessories", stock: 180, imageUrl: "", ratings: { average: 4.5, count: 2104 } },
+  { name: "Dell XPS 15", description: "15-inch ultrabook with InfinityEdge display", price: 1499, category: "computers", stock: 60, imageUrl: "", ratings: { average: 4.4, count: 289 } },
+  { name: "Nike Air Max", description: "Classic running shoes with visible Air cushioning", price: 159, category: "shoes", stock: 200, imageUrl: "", ratings: { average: 4.3, count: 1870 } },
+  { name: "Lego Star Wars", description: "Millennium Falcon building set with 1351 pieces", price: 169, category: "toys", stock: 90, imageUrl: "", ratings: { average: 4.9, count: 743 } },
+  { name: "Dyson V15", description: "Cordless vacuum cleaner with laser dust detection", price: 749, category: "home", stock: 50, imageUrl: "", ratings: { average: 4.6, count: 512 } },
+];
+
+async function seedProducts() {
+  const count = await Product.countDocuments();
+  if (count > 0) return;
+
+  await Product.insertMany(SAMPLE_PRODUCTS);
+  console.log(`Seeded ${SAMPLE_PRODUCTS.length} sample products`);
+}
+
+// ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
 async function start() {
@@ -110,6 +135,8 @@ async function start() {
     console.error("MongoDB connection failed:", err.message);
     process.exit(1);
   }
+
+  await seedProducts();
 
   try {
     await redis.connect();
