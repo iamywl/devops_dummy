@@ -242,8 +242,8 @@ VM 전체 동시 기동 시:
 | rabbitmq | 100m / 300m | 256Mi / 512Mi | 1 |
 | **합계 (단일 레플리카)** | **~1.3** | **~2.5 GB** | |
 
-> prod 기준: 기본 3 레플리카 × 7 WAS 서비스 = 21 pods (+ 데이터 티어 4 pods).
-> HPA 풀 스케일아웃 시 최대 ~58 pods. 4개 워커 노드 (11C/44G)에 분산.
+> prod 기준: WAS 5종 × 3 레플리카 = 15 pods + WEB 2 + Worker 1 + 데이터 4 = 22 pods (평시).
+> HPA 풀 스케일아웃 시 최대 ~55 pods. 4개 워커 노드 (11C/44G)에 분산.
 > topologySpreadConstraints + podAntiAffinity로 노드 간 균등 분배.
 
 ---
@@ -385,7 +385,7 @@ devops_dummpy/
 │   │   └── prod/
 │   │       ├── kustomization.yaml         #   namePrefix: prod-
 │   │       ├── resource-patches.yaml      #   replicas: 3, topologySpread, podAntiAffinity
-│   │       ├── hpa.yaml                   #   HPA 7개 (전 WAS + nginx, max 10)
+│   │       ├── hpa.yaml                   #   HPA 6개 (WAS 5 + nginx, max 6~10)
 │   │       ├── pdb.yaml                   #   PDB 8개 (critical: minAvailable 2)
 │   │       ├── keda-scalers.yaml          #   KEDA ScaledObject (notification-worker)
 │   │       └── prod-config.yaml           #   LOG_LEVEL: warn
@@ -431,7 +431,11 @@ devops_dummpy/
 │   ├── service-monitors/
 │   │   ├── order-service-monitor.yaml     #   /actuator/prometheus 스크래핑
 │   │   ├── product-service-monitor.yaml   #   /metrics 스크래핑
-│   │   └── cart-service-monitor.yaml      #   /metrics 스크래핑
+│   │   ├── cart-service-monitor.yaml      #   /metrics 스크래핑
+│   │   ├── user-service-monitor.yaml      #   /metrics 스크래핑
+│   │   ├── review-service-monitor.yaml    #   /metrics 스크래핑
+│   │   ├── nginx-static-monitor.yaml      #   /stub_status 스크래핑
+│   │   └── notification-worker-monitor.yaml #  /metrics 스크래핑
 │   ├── prometheus-rules/
 │   │   └── sla-rules.yaml                #   P99>1s, 에러율>1%, Pod 재시작 알림
 │   └── grafana-dashboards/
@@ -451,12 +455,23 @@ devops_dummpy/
 │   └── demo.sh [cluster]                 #   풀 데모 (빌드→배포→검증→테스트)
 │
 └── docs/                                  # ── 문서 ──
-    ├── architecture.md
-    ├── traffic-simulation.md
-    ├── resource-budget.md
+    ├── architecture.md                    #   전체 시스템 아키텍처 상세
+    ├── traffic-simulation.md              #   MAU 1천만 트래픽 산출 근거, k6 시나리오 설계
+    ├── resource-budget.md                 #   VM/Pod 리소스 버짓 계획서
     ├── hands-on-lab.md                    #   13개 Lab 실습 가이드
     ├── traffic-handling.md                #   멀티레벨 캐시, Rate Limit, 백프레셔
-    └── troubleshooting.md                 #   ARM64, 베어메탈 K8s, Tart VM 이슈
+    ├── troubleshooting.md                 #   ARM64, 베어메탈 K8s, Tart VM 이슈
+    └── review/                            #   ── 단계별 재연 가이드 (10편) ──
+        ├── 00-overview.md                 #   개요, 선행 조건, 프로젝트 구조
+        ├── 01-vm-cluster-setup.md         #   Tart VM + kubeadm K8s 클러스터
+        ├── 02-container-image-build.md    #   멀티스테이지 Docker 이미지 빌드
+        ├── 03-kustomize-deploy.md         #   Kustomize base/overlay 배포
+        ├── 04-service-architecture.md     #   서비스 내부 구조, 통신 흐름
+        ├── 05-autoscaling.md              #   HPA, KEDA, PDB 동작 원리
+        ├── 06-monitoring-observability.md #   Prometheus, Grafana, EFK, Scouter
+        ├── 07-service-mesh-istio.md       #   mTLS, 서킷브레이커, VirtualService
+        ├── 08-gitops-argocd.md            #   App-of-Apps, Sync Policy
+        └── 09-loadtest-analysis.md        #   k6 부하 테스트, 결과 분석
 ```
 
 ---

@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: notification-worker
+  namespace: ecommerce
+  labels:
+    app: notification-worker
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: notification-worker
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
