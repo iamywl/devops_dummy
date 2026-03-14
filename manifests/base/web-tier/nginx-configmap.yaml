@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: ecommerce
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        multi_accept on;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" rt=$request_time';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript;
+
+        # Upstream definitions - WAS tier
+        upstream order_service {
+            server order-service:8080;
+        }
+
+        upstream product_service {
+            server product-service:3000;
+        }
+
+        upstream cart_service {
+            server cart-service:8081;
+        }
+
+        # Rate limiting zone
+        limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;
+
+        server {
+            listen 80;
+            server_name _;
+
+            # Static files
+            location / {
+                root /usr/share/nginx/html;
+                index index.html;
+                try_files $uri $uri/ /index.html;
+            }
+
+            # API reverse proxy - Order Service (Tomcat/Spring Boot)
+            location /api/orders {
+                limit_req zone=api burst=50 nodelay;
+                proxy_pass http://order_service;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 30s;
+            }
+
+            # API reverse proxy - Product Service (Node.js/Express)
+            location /api/products {
+                limit_req zone=api burst=50 nodelay;
+                proxy_pass http://product_service;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 30s;
+            }
+
+            # API reverse proxy - Cart Service (Go)
+            location /api/cart {
+                limit_req zone=api burst=50 nodelay;
+                proxy_pass http://cart_service;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 10s;
+            }
+
+            # Nginx stub_status for monitoring
+            location /stub_status {
+                stub_status;
+                allow 10.0.0.0/8;
+                allow 127.0.0.1;
+                deny all;
+            }
+
+            # Health check
+            location /healthz {
+                return 200 'ok';
+                add_header Content-Type text/plain;
+            }
+        }
+    }

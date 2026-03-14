@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ecommerce
+
+commonLabels:
+  app.kubernetes.io/part-of: devops-ecommerce
+
+resources:
+  - namespace.yaml
+  # Web Tier
+  - web-tier/nginx-configmap.yaml
+  - web-tier/nginx-static.yaml
+  - web-tier/apache-legacy.yaml
+  # WAS Tier
+  - was-tier/order-service.yaml
+  - was-tier/product-service.yaml
+  - was-tier/cart-service.yaml
+  - was-tier/notification-worker.yaml
+  # Data Tier
+  - data-tier/secrets.yaml
+  - data-tier/postgresql.yaml
+  - data-tier/mongodb.yaml
+  - data-tier/redis.yaml
+  # Messaging
+  - messaging/rabbitmq.yaml
+  # Ingress
+  - ingress/ingress-routes.yaml

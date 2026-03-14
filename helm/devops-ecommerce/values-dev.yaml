@@ -1,0 +1,18 @@
+# Dev environment overrides
+environment: dev
+logLevel: debug
+
+orderService:
+  replicas: 1
+productService:
+  replicas: 1
+cartService:
+  replicas: 1
+notificationWorker:
+  replicas: 1
+
+autoscaling:
+  enabled: false
+
+istio:
+  enabled: true

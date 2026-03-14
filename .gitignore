@@ -1,0 +1,38 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Java
+target/
+*.class
+*.jar
+*.war
+
+# Node.js
+node_modules/
+dist/
+.env
+
+# Go
+bin/
+
+# Docker
+docker-compose.override.yml
+
+# Kubernetes
+kubeconfig/
+*.kubeconfig
+
+# Load test results
+loadtest/results/*.json
+loadtest/results/*.html
+
+# Secrets
+**/secrets/*.yaml
+!**/secrets/.gitkeep
+
+# OS
+Thumbs.db

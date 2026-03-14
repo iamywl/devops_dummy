@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-ingress
+  namespace: ecommerce
+  labels:
+    app: ecommerce
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: ecommerce.local
+      http:
+        paths:
+          # Frontend (Nginx static)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-static
+                port:
+                  number: 80
+          # Order Service (Tomcat/Spring Boot WAS)
+          - path: /api/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-service
+                port:
+                  number: 8080
+          # Product Service (Node.js/Express)
+          - path: /api/products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3000
+          # Cart Service (Go)
+          - path: /api/cart
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-service
+                port:
+                  number: 8081
+          # Apache Legacy
+          - path: /legacy
+            pathType: Prefix
+            backend:
+              service:
+                name: apache-legacy
+                port:
+                  number: 80
+          # RabbitMQ Management UI
+          - path: /rabbitmq
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672

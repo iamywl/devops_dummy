@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cart-service
+  namespace: ecommerce
+  labels:
+    app: cart-service
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: cart-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

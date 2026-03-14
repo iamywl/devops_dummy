@@ -1,0 +1,29 @@
+# Production environment overrides
+environment: prod
+logLevel: warn
+
+nginx:
+  replicas: 2
+
+orderService:
+  replicas: 2
+  javaOpts: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+productService:
+  replicas: 2
+cartService:
+  replicas: 2
+notificationWorker:
+  replicas: 1
+
+autoscaling:
+  enabled: true
+  hpa:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPU: 50
+  keda:
+    enabled: true
+    queueLength: 5
+
+istio:
+  enabled: true

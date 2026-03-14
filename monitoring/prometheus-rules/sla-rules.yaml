@@ -1,0 +1,72 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ecommerce-sla-rules
+  namespace: ecommerce
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: ecommerce-sla
+      rules:
+        # P99 latency > 1s for order-service
+        - alert: OrderServiceHighLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_server_requests_seconds_bucket{namespace="ecommerce",service="order-service"}[5m])) by (le)
+            ) > 1.0
+          for: 5m
+          labels:
+            severity: warning
+            service: order-service
+          annotations:
+            summary: "Order Service P99 latency > 1s"
+            description: "P99 latency is {{ $value }}s"
+
+        # Error rate > 1%
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_server_requests_seconds_count{namespace="ecommerce",status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{namespace="ecommerce"}[5m]))
+            > 0.01
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "E-Commerce error rate > 1%"
+            description: "Error rate is {{ $value | humanizePercentage }}"
+
+        # Pod restart count
+        - alert: PodRestartLoop
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="ecommerce"}[1h]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} restarting frequently"
+
+    - name: ecommerce-autoscaling
+      rules:
+        # HPA at max replicas for too long
+        - alert: HPAMaxedOut
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="ecommerce"}
+            ==
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="ecommerce"}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} at max replicas"
+            description: "Consider increasing maxReplicas"
+
+        # KEDA queue backlog
+        - alert: RabbitMQQueueBacklog
+          expr: |
+            rabbitmq_queue_messages{queue="order.created"} > 100
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "RabbitMQ order.created queue backlog > 100"

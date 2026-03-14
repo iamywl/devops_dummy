@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env-config
+  namespace: ecommerce
+data:
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "info"

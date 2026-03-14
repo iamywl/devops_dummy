@@ -1,0 +1,26 @@
+╔══════════════════════════════════════════════════════╗
+║     DevOps E-Commerce Platform - MAU 10M Demo       ║
+╚══════════════════════════════════════════════════════╝
+
+Environment: {{ .Values.environment }}
+
+Services deployed:
+  WEB:  Nginx (static + reverse proxy) + Apache (legacy)
+  WAS:  Order Service (Tomcat/Spring Boot)
+        Product Service (Node.js/Express)
+        Cart Service (Go)
+        Notification Worker (Node.js/RabbitMQ)
+  DATA: PostgreSQL, MongoDB, Redis
+  MQ:   RabbitMQ
+
+Access:
+  Frontend:  http://<node-ip>:{{ .Values.nginx.nodePort }}
+  RabbitMQ:  http://<node-ip>:31672
+
+{{- if .Values.autoscaling.enabled }}
+Autoscaling: ENABLED
+  HPA: {{ .Values.autoscaling.hpa.minReplicas }}-{{ .Values.autoscaling.hpa.maxReplicas }} replicas (CPU {{ .Values.autoscaling.hpa.targetCPU }}%)
+  {{- if .Values.autoscaling.keda.enabled }}
+  KEDA: notification-worker scales on queue depth (threshold: {{ .Values.autoscaling.keda.queueLength }})
+  {{- end }}
+{{- end }}

@@ -1,0 +1,15 @@
+# Staging environment overrides
+environment: staging
+logLevel: info
+
+orderService:
+  replicas: 2
+productService:
+  replicas: 2
+cartService:
+  replicas: 2
+notificationWorker:
+  replicas: 1
+
+autoscaling:
+  enabled: false

@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apache-config
+  namespace: ecommerce
+data:
+  httpd-proxy.conf: |
+    # Apache HTTPD - Legacy compatibility reverse proxy
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+    LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+    LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+    LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
+
+    # Reverse proxy to Order Service (Tomcat WAS)
+    <Proxy "balancer://order-cluster">
+        BalancerMember "http://order-service:8080"
+    </Proxy>
+
+    ProxyPass "/legacy/api/orders" "balancer://order-cluster/api/orders"
+    ProxyPassReverse "/legacy/api/orders" "balancer://order-cluster/api/orders"
+
+    # Health check endpoint
+    <Location "/server-status">
+        SetHandler server-status
+        Require ip 10.0.0.0/8
+        Require ip 127.0.0.1
+    </Location>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apache-legacy
+  namespace: ecommerce
+  labels:
+    app: apache-legacy
+    tier: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apache-legacy
+  template:
+    metadata:
+      labels:
+        app: apache-legacy
+        tier: web
+    spec:
+      containers:
+        - name: httpd
+          image: httpd:2.4-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: apache-config
+              mountPath: /usr/local/apache2/conf/extra/httpd-proxy.conf
+              subPath: httpd-proxy.conf
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: apache-config
+          configMap:
+            name: apache-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apache-legacy
+  namespace: ecommerce
+  labels:
+    app: apache-legacy
+    tier: web
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app: apache-legacy

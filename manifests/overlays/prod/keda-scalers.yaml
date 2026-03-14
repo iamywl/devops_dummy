@@ -1,0 +1,22 @@
+# KEDA ScaledObject - notification-worker scales based on RabbitMQ queue depth
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: notification-worker-scaler
+  namespace: ecommerce
+  labels:
+    app: notification-worker
+spec:
+  scaleTargetRef:
+    name: prod-notification-worker
+  pollingInterval: 15
+  cooldownPeriod: 60
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: rabbitmq
+      metadata:
+        host: "amqp://guest:guest@prod-rabbitmq.ecommerce.svc.cluster.local:5672"
+        queueName: "order.created"
+        mode: QueueLength
+        value: "5"

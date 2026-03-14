@@ -1,0 +1,64 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: order-service-vs
+  namespace: ecommerce
+spec:
+  hosts:
+    - order-service
+  http:
+    - route:
+        - destination:
+            host: order-service
+            port:
+              number: 8080
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: 5xx,reset,connect-failure,retriable-4xx
+      fault:
+        delay:
+          percentage:
+            value: 0
+          fixedDelay: 0s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: product-service-vs
+  namespace: ecommerce
+spec:
+  hosts:
+    - product-service
+  http:
+    - route:
+        - destination:
+            host: product-service
+            port:
+              number: 3000
+      timeout: 5s
+      retries:
+        attempts: 2
+        perTryTimeout: 2s
+        retryOn: 5xx,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: cart-service-vs
+  namespace: ecommerce
+spec:
+  hosts:
+    - cart-service
+  http:
+    - route:
+        - destination:
+            host: cart-service
+            port:
+              number: 8081
+      timeout: 3s
+      retries:
+        attempts: 2
+        perTryTimeout: 1s
+        retryOn: 5xx,connect-failure

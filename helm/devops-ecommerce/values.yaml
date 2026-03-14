@@ -1,0 +1,147 @@
+# Default values for devops-ecommerce
+namespace: ecommerce
+
+# ─── Web Tier ───
+nginx:
+  enabled: true
+  replicas: 1
+  image: frontend:latest
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  nodePort: 30080
+
+apache:
+  enabled: true
+  replicas: 1
+  image: httpd:2.4-alpine
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ─── WAS Tier ───
+orderService:
+  replicas: 1
+  image: order-service:latest
+  port: 8080
+  javaOpts: "-Xms256m -Xmx512m -XX:+UseG1GC"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+productService:
+  replicas: 1
+  image: product-service:latest
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+
+cartService:
+  replicas: 1
+  image: cart-service:latest
+  port: 8081
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 128Mi
+
+notificationWorker:
+  replicas: 1
+  image: notification-worker:latest
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ─── Data Tier ───
+postgresql:
+  image: postgres:16-alpine
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mongodb:
+  image: mongo:7-jammy
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+redis:
+  image: redis:7-alpine
+  maxMemory: "200mb"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ─── Messaging ───
+rabbitmq:
+  image: rabbitmq:3-management-alpine
+  storage: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+# ─── Autoscaling ───
+autoscaling:
+  enabled: false
+  hpa:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPU: 50
+  keda:
+    enabled: false
+    queueLength: 5
+
+# ─── Istio ───
+istio:
+  enabled: false
+
+# ─── Ingress ───
+ingress:
+  enabled: true
+  host: ecommerce.local
+
+# ─── Environment ───
+environment: dev
+logLevel: debug

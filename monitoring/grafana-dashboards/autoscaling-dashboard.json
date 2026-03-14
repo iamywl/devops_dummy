@@ -1,0 +1,66 @@
+{
+  "dashboard": {
+    "title": "Autoscaling Dashboard",
+    "tags": ["autoscaling", "hpa", "keda"],
+    "panels": [
+      {
+        "title": "HPA Replica Count",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"ecommerce\"}",
+            "legendFormat": "{{ horizontalpodautoscaler }} current"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"ecommerce\"}",
+            "legendFormat": "{{ horizontalpodautoscaler }} max"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_min_replicas{namespace=\"ecommerce\"}",
+            "legendFormat": "{{ horizontalpodautoscaler }} min"
+          }
+        ]
+      },
+      {
+        "title": "CPU Utilization vs HPA Target",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"ecommerce\"}[5m])) by (pod) / sum(kube_pod_container_resource_requests{namespace=\"ecommerce\", resource=\"cpu\"}) by (pod) * 100",
+            "legendFormat": "{{ pod }} CPU %"
+          }
+        ]
+      },
+      {
+        "title": "KEDA Scaling Events",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "kube_deployment_status_replicas{namespace=\"ecommerce\", deployment=~\".*notification.*\"}",
+            "legendFormat": "notification-worker replicas"
+          },
+          {
+            "expr": "rabbitmq_queue_messages{queue=\"order.created\"}",
+            "legendFormat": "Queue Depth"
+          }
+        ]
+      },
+      {
+        "title": "Pod Restart Count",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"ecommerce\"}[1h])",
+            "legendFormat": "{{ pod }}"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-1h", "to": "now" },
+    "refresh": "10s"
+  }
+}
