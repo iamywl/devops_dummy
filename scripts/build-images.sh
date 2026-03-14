@@ -5,7 +5,7 @@ source "$(dirname "$0")/lib/common.sh"
 log_step "Building all Docker images (ARM64)..."
 
 APPS_DIR="${PROJECT_ROOT}/apps"
-IMAGES=("order-service" "product-service" "cart-service" "notification-worker" "frontend")
+IMAGES=("order-service" "product-service" "cart-service" "user-service" "review-service" "notification-worker" "frontend")
 
 for app in "${IMAGES[@]}"; do
   log_info "Building ${app}..."

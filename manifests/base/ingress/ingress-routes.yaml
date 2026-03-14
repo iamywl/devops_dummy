@@ -49,6 +49,22 @@ spec:
                 name: cart-service
                 port:
                   number: 8081
+          # User Service (Python/FastAPI)
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8000
+          # Review Service (Rust/Actix-web)
+          - path: /api/reviews
+            pathType: Prefix
+            backend:
+              service:
+                name: review-service
+                port:
+                  number: 8082
           # Apache Legacy
           - path: /legacy
             pathType: Prefix

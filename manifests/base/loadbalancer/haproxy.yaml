@@ -1,0 +1,189 @@
+# ──────────────────────────────────────────────────────
+# HAProxy - L4/L7 Load Balancer
+# Nginx Ingress와 별도로 L4 레벨 로드밸런싱 데모
+# 실무에서는 온프레미스/베어메탈 K8s 앞단에 위치
+# ──────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-config
+  namespace: ecommerce
+data:
+  haproxy.cfg: |
+    global
+        log stdout format raw local0
+        maxconn 4096
+        stats socket /var/run/haproxy.sock mode 660 level admin
+
+    defaults
+        log     global
+        mode    http
+        option  httplog
+        option  dontlognull
+        option  forwardfor
+        timeout connect 5s
+        timeout client  30s
+        timeout server  30s
+        timeout http-request 10s
+        retries 3
+
+    # ─── Stats Dashboard ───
+    frontend stats
+        bind *:8404
+        stats enable
+        stats uri /stats
+        stats refresh 10s
+        stats admin if TRUE
+
+    # ─── L7 Frontend ───
+    frontend http_front
+        bind *:8080
+        mode http
+
+        # ACL based routing
+        acl is_order    path_beg /api/orders
+        acl is_product  path_beg /api/products
+        acl is_cart     path_beg /api/cart
+        acl is_user     path_beg /api/users
+        acl is_review   path_beg /api/reviews
+
+        # Rate limiting (stick table)
+        stick-table type ip size 100k expire 30s store http_req_rate(10s)
+        http-request track-sc0 src
+        http-request deny deny_status 429 if { sc_http_req_rate(0) gt 100 }
+
+        use_backend order_backend    if is_order
+        use_backend product_backend  if is_product
+        use_backend cart_backend     if is_cart
+        use_backend user_backend     if is_user
+        use_backend review_backend   if is_review
+        default_backend static_backend
+
+    # ─── L4 TCP Frontend (database proxy 데모) ───
+    frontend pg_front
+        bind *:15432
+        mode tcp
+        option tcplog
+        default_backend pg_backend
+
+    # ─── Backends ───
+    backend order_backend
+        mode http
+        balance roundrobin
+        option httpchk GET /actuator/health
+        http-check expect status 200
+        server order1 order-service:8080 check inter 5s fall 3 rise 2
+
+    backend product_backend
+        mode http
+        balance leastconn
+        option httpchk GET /health
+        http-check expect status 200
+        server product1 product-service:3000 check inter 5s fall 3 rise 2
+
+    backend cart_backend
+        mode http
+        balance roundrobin
+        option httpchk GET /health
+        http-check expect status 200
+        server cart1 cart-service:8081 check inter 5s fall 3 rise 2
+
+    backend user_backend
+        mode http
+        balance roundrobin
+        option httpchk GET /health
+        http-check expect status 200
+        server user1 user-service:8000 check inter 5s fall 3 rise 2
+
+    backend review_backend
+        mode http
+        balance roundrobin
+        option httpchk GET /health
+        http-check expect status 200
+        server review1 review-service:8082 check inter 5s fall 3 rise 2
+
+    backend static_backend
+        mode http
+        server static1 nginx-static:80 check
+
+    backend pg_backend
+        mode tcp
+        balance roundrobin
+        option pgsql-check user ecommerce
+        server pg1 postgresql:5432 check inter 10s
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: haproxy
+  namespace: ecommerce
+  labels:
+    app: haproxy
+    tier: loadbalancer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: haproxy
+  template:
+    metadata:
+      labels:
+        app: haproxy
+        tier: loadbalancer
+    spec:
+      containers:
+        - name: haproxy
+          image: haproxy:2.9-alpine
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8404
+              name: stats
+            - containerPort: 15432
+              name: pg-proxy
+          volumeMounts:
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /stats
+              port: 8404
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: haproxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: haproxy
+  namespace: ecommerce
+  labels:
+    app: haproxy
+    tier: loadbalancer
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30880
+      name: http
+    - port: 8404
+      targetPort: 8404
+      nodePort: 30884
+      name: stats
+    - port: 15432
+      targetPort: 15432
+      name: pg-proxy
+  selector:
+    app: haproxy

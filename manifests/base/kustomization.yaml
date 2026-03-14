@@ -16,6 +16,8 @@ resources:
   - was-tier/order-service.yaml
   - was-tier/product-service.yaml
   - was-tier/cart-service.yaml
+  - was-tier/user-service.yaml
+  - was-tier/review-service.yaml
   - was-tier/notification-worker.yaml
   # Data Tier
   - data-tier/secrets.yaml
@@ -24,5 +26,9 @@ resources:
   - data-tier/redis.yaml
   # Messaging
   - messaging/rabbitmq.yaml
+  # Load Balancer
+  - loadbalancer/haproxy.yaml
+  # Logging (EFK)
+  - logging/efk-stack.yaml
   # Ingress
   - ingress/ingress-routes.yaml

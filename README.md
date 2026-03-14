@@ -23,9 +23,11 @@
 
 - **멀티티어 마이크로서비스** 아키텍처 (WEB → WAS → DB)
 - **웹서버 2종**: Nginx (리버스 프록시 + 정적 서빙) + Apache HTTPD (레거시 호환)
-- **WAS 3종**: Tomcat/Spring Boot (Java) + Express (Node.js) + Go (net/http)
+- **WAS 5종**: Tomcat/Spring Boot (Java) + Express (Node.js) + Go (net/http) + FastAPI (Python) + Actix-web (Rust)
+- **로드밸런서**: HAProxy (L4/L7 로드밸런싱, stick-table Rate Limiting)
 - **데이터베이스 3종**: PostgreSQL (SQL) + MongoDB (NoSQL) + Redis (Cache)
 - **메시지 큐**: RabbitMQ (이벤트 기반 비동기 처리)
+- **로그 수집**: EFK Stack (Elasticsearch + Fluentd + Kibana)
 - **탄력적 스케일링**: HPA (CPU 기반) + KEDA (큐 기반) + PDB (안정성)
 - **서비스 메시**: Istio (서킷브레이커, mTLS, 카나리 배포)
 - **GitOps CI/CD**: ArgoCD (App-of-Apps 패턴)
@@ -99,12 +101,13 @@
 │  │   /prometheus   │ │   (prom-client) │ │(promhttp)│ │
 │  └────────┬────────┘ └────────┬────────┘ └─────┬────┘ │
 │           │                   │                 │      │
-│  ┌────────▼────────┐         │                 │      │
-│  │notification-    │         │                 │      │
-│  │worker           │         │                 │      │
-│  │(Node.js)        │         │                 │      │
-│  │RabbitMQ Consumer│         │                 │      │
-│  └─────────────────┘         │                 │      │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌──────────┐ │
+│  │ user-service    │ │ review-service  │ │notify-   │ │
+│  │ ─────────────── │ │ ─────────────── │ │worker    │ │
+│  │ Python 3.12     │ │ Rust 1.77       │ │Node.js   │ │
+│  │ FastAPI         │ │ Actix-web       │ │RabbitMQ  │ │
+│  │ → /api/users    │ │ → /api/reviews  │ │Consumer  │ │
+│  └─────────────────┘ └─────────────────┘ └──────────┘ │
 └────────┬──────────────────────┬─────────────────┘──────┘
          │                      │                 │
 ┌────────▼──────────────────────┴─────────────────▼──────┐
@@ -219,12 +222,18 @@ VM 전체 동시 기동 시:
 | order-service (Tomcat) | 100m / 500m | 256Mi / 512Mi | 2-6 (HPA) |
 | product-service (Node.js) | 100m / 400m | 128Mi / 256Mi | 2-6 (HPA) |
 | cart-service (Go) | 50m / 300m | 64Mi / 128Mi | 2-4 (HPA) |
+| user-service (FastAPI) | 50m / 300m | 128Mi / 256Mi | 2-4 (HPA) |
+| review-service (Rust) | 30m / 200m | 32Mi / 64Mi | 2-4 (HPA) |
 | notification-worker | 50m / 200m | 128Mi / 256Mi | 1-5 (KEDA) |
+| haproxy | 50m / 200m | 64Mi / 128Mi | 1 |
+| elasticsearch | 200m / 1000m | 512Mi / 1Gi | 1 |
+| fluentd (DaemonSet) | 50m / 200m | 128Mi / 256Mi | 노드당 1 |
+| kibana | 100m / 500m | 256Mi / 512Mi | 1 |
 | postgresql | 100m / 500m | 256Mi / 512Mi | 1 |
 | mongodb | 100m / 500m | 256Mi / 512Mi | 1 |
 | redis | 50m / 200m | 64Mi / 256Mi | 1 |
 | rabbitmq | 100m / 300m | 256Mi / 512Mi | 1 |
-| **합계 (단일 레플리카)** | **~850m** | **~1.3 GB** | |
+| **합계 (단일 레플리카)** | **~1.3** | **~2.5 GB** | |
 
 > 워커 노드 1개 (2 CPU, 8 GB)에 단일 레플리카 기준 전체 앱이 충분히 들어감.
 > prod에서 HPA가 스케일아웃하면 2개 워커 노드에 걸쳐 분산됨.
@@ -240,10 +249,14 @@ VM 전체 동시 기동 시:
 | **WAS** | Tomcat (Spring Boot) | 10.x (3.2.x) | 엔터프라이즈 표준 Java WAS, JPA + Actuator 메트릭 |
 | **WAS** | Node.js (Express) | 20 LTS | 비동기 I/O 기반 고성능 API, Mongoose ODM |
 | **WAS** | Go (net/http) | 1.22 | 초경량 바이너리, 최소 메모리, 고성능 카트 서비스 |
+| **WAS** | FastAPI (Uvicorn) | Python 3.12 | 비동기 ASGI, 자동 API 문서(Swagger), 유저 서비스 |
+| **WAS** | Actix-web | Rust 1.77 | 초고성능 HTTP 프레임워크, 메모리 안전, 리뷰 서비스 |
+| **LB** | HAProxy | 2.9 | L4/L7 로드밸런싱, stick-table Rate Limiting, Stats UI |
 | **SQL** | PostgreSQL | 16 | ACID 트랜잭션, 주문/유저 데이터 정합성 보장 |
 | **NoSQL** | MongoDB | 7 | 스키마리스 문서형, 상품 카탈로그/리뷰 유연 저장 |
 | **Cache** | Redis | 7 | 인메모리 캐시 (상품), 세션 스토어 (장바구니) |
 | **MQ** | RabbitMQ | 3 | AMQP 메시지 큐, KEDA 연동, Management UI |
+| **Logging** | EFK Stack | ES 8.12 | Elasticsearch + Fluentd + Kibana, 중앙 로그 수집 |
 | **Container** | Docker | - | ARM64 멀티스테이지 빌드 |
 | **Orchestration** | Kubernetes | kubeadm | 멀티클러스터 (dev/staging/prod) |
 | **VM** | Tart | latest | Apple Silicon 네이티브, 경량 VM |
@@ -299,6 +312,18 @@ devops_dummpy/
 │   │   ├── go.mod / go.sum               #   go-redis, prometheus client
 │   │   └── main.go                        #   Redis Hash 기반 장바구니 CRUD
 │   │
+│   ├── user-service/                      # [WAS] Python FastAPI + Uvicorn
+│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (python:3.12-slim)
+│   │   ├── requirements.txt               #   fastapi, uvicorn, asyncpg, redis
+│   │   ├── main.py                        #   FastAPI 앱, 라우터 등록
+│   │   ├── models.py                      #   SQLAlchemy 비동기 모델 (User)
+│   │   └── database.py                    #   AsyncSession, DB 연결
+│   │
+│   ├── review-service/                    # [WAS] Rust Actix-web
+│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (rust → debian-slim)
+│   │   ├── Cargo.toml                     #   actix-web, mongodb, serde
+│   │   └── src/main.rs                    #   REST API + MongoDB 연결
+│   │
 │   ├── notification-worker/               # [Worker] Node.js RabbitMQ Consumer
 │   │   ├── Dockerfile
 │   │   ├── package.json                   #   amqplib, prom-client
@@ -323,6 +348,8 @@ devops_dummpy/
 │   │   │   ├── order-service.yaml         #   Deployment + Service (Tomcat, 8080)
 │   │   │   ├── product-service.yaml       #   Deployment + Service (Node.js, 3000)
 │   │   │   ├── cart-service.yaml          #   Deployment + Service (Go, 8081)
+│   │   │   ├── user-service.yaml          #   Deployment + Service (FastAPI, 8000)
+│   │   │   ├── review-service.yaml        #   Deployment + Service (Actix-web, 8082)
 │   │   │   └── notification-worker.yaml   #   Deployment (Service 없음, consumer)
 │   │   ├── data-tier/
 │   │   │   ├── postgresql.yaml            #   StatefulSet + PVC + Headless Service
@@ -331,6 +358,10 @@ devops_dummpy/
 │   │   │   └── secrets.yaml               #   DB/MQ 자격증명
 │   │   ├── messaging/
 │   │   │   └── rabbitmq.yaml              #   StatefulSet + Management UI
+│   │   ├── loadbalancer/
+│   │   │   └── haproxy.yaml               #   HAProxy L4/L7 LB + Stats + Rate Limit
+│   │   ├── logging/
+│   │   │   └── efk-stack.yaml             #   Elasticsearch + Fluentd + Kibana
 │   │   └── ingress/
 │   │       └── ingress-routes.yaml        #   경로 기반 Ingress 라우팅
 │   │
@@ -402,7 +433,7 @@ devops_dummpy/
 ├── scripts/                               # ── 자동화 스크립트 ──
 │   ├── lib/
 │   │   └── common.sh                     #   공통 함수 (kubectl_cmd, ssh_exec, 로깅)
-│   ├── build-images.sh                    #   5개 앱 Docker 이미지 빌드 (ARM64)
+│   ├── build-images.sh                    #   7개 앱 Docker 이미지 빌드 (ARM64)
 │   ├── deploy.sh <cluster>               #   특정 클러스터에 Kustomize 배포
 │   ├── deploy-all.sh                      #   전체 클러스터 배포
 │   ├── verify.sh [cluster|all]           #   서비스 헬스체크 + 엔드포인트 검증
@@ -414,7 +445,10 @@ devops_dummpy/
 └── docs/                                  # ── 문서 ──
     ├── architecture.md
     ├── traffic-simulation.md
-    └── resource-budget.md
+    ├── resource-budget.md
+    ├── hands-on-lab.md                    #   13개 Lab 실습 가이드
+    ├── traffic-handling.md                #   멀티레벨 캐시, Rate Limit, 백프레셔
+    └── troubleshooting.md                 #   ARM64, 베어메탈 K8s, Tart VM 이슈
 ```
 
 ---
@@ -483,11 +517,11 @@ find . -type f | grep -v '.git/' | wc -l  # 약 94개 파일
 ### Step 2: Docker 이미지 빌드
 
 ```bash
-# 5개 앱 이미지를 ARM64로 빌드 (약 5-10분)
+# 7개 앱 이미지를 ARM64로 빌드 (약 10-15분)
 ./scripts/build-images.sh
 
 # 빌드 결과 확인
-docker images | grep -E "order-service|product-service|cart-service|notification-worker|frontend"
+docker images | grep -E "order-service|product-service|cart-service|user-service|review-service|notification-worker|frontend"
 ```
 
 > **트러블슈팅**: `docker build` 실패 시 Docker Desktop이 실행 중인지 확인.
@@ -499,7 +533,7 @@ Tart VM 내부의 containerd에 이미지를 로드해야 합니다:
 
 ```bash
 # 방법 1: docker save + ssh load (가장 간단)
-IMAGES="order-service product-service cart-service notification-worker frontend"
+IMAGES="order-service product-service cart-service user-service review-service notification-worker frontend"
 WORKER_IP=$(tart ip dev-worker1)
 
 for img in $IMAGES; do
@@ -535,6 +569,8 @@ done
 # dev-order-service-xxx               1/1     Running   0
 # dev-product-service-xxx             1/1     Running   0
 # dev-cart-service-xxx                1/1     Running   0
+# dev-user-service-xxx                1/1     Running   0
+# dev-review-service-xxx              1/1     Running   0
 # dev-notification-worker-xxx         1/1     Running   0
 # dev-nginx-static-xxx                1/1     Running   0
 # dev-apache-legacy-xxx               1/1     Running   0
@@ -566,6 +602,16 @@ curl -X POST http://${DEV_IP}:30080/api/cart \
   -d '{"userId":"user-1","productId":"prod-1","quantity":2}'
 
 curl http://${DEV_IP}:30080/api/cart/user-1
+
+# 유저 서비스 (Python/FastAPI → PostgreSQL)
+curl -X POST http://${DEV_IP}:30080/api/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"pass123"}'
+
+# 리뷰 서비스 (Rust/Actix-web → MongoDB)
+curl -X POST http://${DEV_IP}:30080/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{"productId":"prod-1","userId":"user-1","rating":5,"comment":"Great!"}'
 
 # 헬스체크
 curl http://${DEV_IP}:30080/healthz
@@ -718,9 +764,9 @@ outlierDetection:
 |----|-----------|----------|
 | 1편 | 프로젝트 소개: MAU 1천만 서비스를 로컬에서 구현하기 | 동기, 아키텍처 설계, 기술 선택 이유 |
 | 2편 | Tart VM으로 멀티 K8s 클러스터 구축하기 | tart-infra 프로젝트, VM 리소스 배분, kubeadm |
-| 3편 | 마이크로서비스 설계: 왜 3가지 언어를 썼는가 | Java/Node.js/Go 선택 이유, DB 분리 전략 |
+| 3편 | 마이크로서비스 설계: 왜 5가지 언어를 썼는가 | Java/Node.js/Go/Python/Rust 선택 이유, DB 분리 전략 |
 | 4편 | Nginx + Apache: 웹서버 이중화와 리버스 프록시 | WEB 계층 구성, rate limiting, 레거시 호환 |
-| 5편 | Tomcat + Express + Go: WAS 계층 심층 분석 | 각 WAS의 특성, Prometheus 메트릭 노출 |
+| 5편 | 5가지 WAS 심층 분석: Tomcat + Express + Go + FastAPI + Actix | 각 WAS 특성, 성능 비교, Prometheus 메트릭 |
 | 6편 | PostgreSQL + MongoDB + Redis: 멀티 DB 전략 | SQL vs NoSQL 사용 분기, Redis 캐시 전략 |
 | 7편 | RabbitMQ와 이벤트 기반 아키텍처 | 주문 이벤트 흐름, KEDA 연동 |
 | 8편 | Kustomize + Helm: K8s 배포 전략 비교 | base/overlay 패턴, Helm 파라미터화 |
@@ -729,8 +775,11 @@ outlierDetection:
 | 11편 | HPA + KEDA: 탄력적 오토스케일링 | CPU 기반 vs 이벤트 기반, 스케일링 관찰 |
 | 12편 | k6 부하 테스트: MAU 1천만 시뮬레이션 | 트래픽 계산, 시나리오 설계, 결과 분석 |
 | 13편 | Prometheus + Grafana: SRE 대시보드 구축 | ServiceMonitor, 알림 규칙, 대시보드 |
-| 14편 | 트러블슈팅 사례 모음 | OOM, 커넥션 풀, HPA 미작동 등 실제 이슈 |
-| 15편 | 회고: 이 프로젝트에서 배운 것들 | 개선점, 실무 vs 포트폴리오 차이 |
+| 14편 | HAProxy L4/L7 로드밸런싱과 Rate Limiting | stick-table, Stats UI, 트래픽 제어 |
+| 15편 | EFK Stack으로 중앙 로그 수집 | Elasticsearch + Fluentd + Kibana 구축 |
+| 16편 | 트래픽 대응 전략: 캐시, 백프레셔, 서킷브레이커 | 멀티레벨 캐시, KEDA 백프레셔, Istio 서킷브레이커 |
+| 17편 | 트러블슈팅 사례 모음 | OOM, 커넥션 풀, HPA 미작동 등 실제 이슈 |
+| 18편 | 회고: 이 프로젝트에서 배운 것들 | 개선점, 실무 vs 포트폴리오 차이 |
 
 ### 블로그 작성 팁
 

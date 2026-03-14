@@ -44,6 +44,14 @@ data:
             server cart-service:8081;
         }
 
+        upstream user_service {
+            server user-service:8000;
+        }
+
+        upstream review_service {
+            server review-service:8082;
+        }
+
         # Rate limiting zone
         limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;
 
@@ -92,6 +100,30 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
                 proxy_connect_timeout 5s;
                 proxy_read_timeout 10s;
+            }
+
+            # API reverse proxy - User Service (Python/FastAPI)
+            location /api/users {
+                limit_req zone=api burst=50 nodelay;
+                proxy_pass http://user_service;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 30s;
+            }
+
+            # API reverse proxy - Review Service (Rust/Actix-web)
+            location /api/reviews {
+                limit_req zone=api burst=50 nodelay;
+                proxy_pass http://review_service;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 5s;
+                proxy_read_timeout 30s;
             }
 
             # Nginx stub_status for monitoring

@@ -16,6 +16,15 @@ export const ENDPOINTS = {
   CART_GET:          (userId) => `${BASE_URL}/api/cart/${userId}`,
   CART_DELETE:        (userId) => `${BASE_URL}/api/cart/${userId}`,
 
+  // User Service (Python/FastAPI → PostgreSQL)
+  USERS_REGISTER:   `${BASE_URL}/api/users/register`,
+  USERS_LIST:       `${BASE_URL}/api/users`,
+  USER_BY_ID:       (id) => `${BASE_URL}/api/users/${id}`,
+
+  // Review Service (Rust/Actix-web → MongoDB)
+  REVIEWS_CREATE:   `${BASE_URL}/api/reviews`,
+  REVIEWS_BY_PRODUCT: (productId) => `${BASE_URL}/api/reviews/${productId}`,
+
   // Health
   HEALTH:           `${BASE_URL}/healthz`,
 };
