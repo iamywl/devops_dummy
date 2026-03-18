@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 680" font-family="'Pretendard','Noto Sans KR',sans-serif">
+  <defs>
+    <style>
+      .title{font-size:20px;font-weight:700;fill:#1a1a2e}
+      .svc{font-size:11px;font-weight:600;fill:#1a1a2e}
+      .detail{font-size:9px;fill:#666}
+      .metric{font-size:8px;fill:#7c3aed;font-family:monospace}
+      .arrow{stroke:#64748b;stroke-width:1.5;fill:none;marker-end:url(#a1)}
+      .arrow-prom{stroke:#e74c3c;stroke-width:2;fill:none;marker-end:url(#ap)}
+      .arrow-log{stroke:#f59e0b;stroke-width:1.5;stroke-dasharray:5,3;fill:none;marker-end:url(#al)}
+      .arrow-apm{stroke:#8b5cf6;stroke-width:1.5;fill:none;marker-end:url(#aa)}
+    </style>
+    <marker id="a1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#64748b"/></marker>
+    <marker id="ap" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#e74c3c"/></marker>
+    <marker id="al" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f59e0b"/></marker>
+    <marker id="aa" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#8b5cf6"/></marker>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/></filter>
+  </defs>
+
+  <rect width="1100" height="680" fill="#f8fafc" rx="12"/>
+  <text x="550" y="35" text-anchor="middle" class="title">Monitoring &amp; Observability — 3-Pillar (Metrics + Logs + Traces)</text>
+
+  <!-- Legend -->
+  <g transform="translate(750,48)">
+    <rect width="320" height="55" rx="6" fill="#fff" stroke="#e2e8f0" filter="url(#sh)"/>
+    <line x1="15" y1="15" x2="55" y2="15" stroke="#e74c3c" stroke-width="2" marker-end="url(#ap)"/>
+    <text x="62" y="19" class="detail">Prometheus 스크래핑 (Pull, 15초)</text>
+    <line x1="15" y1="32" x2="55" y2="32" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#al)"/>
+    <text x="62" y="36" class="detail">Fluentd 로그 수집 (Push)</text>
+    <line x1="15" y1="49" x2="55" y2="49" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#aa)"/>
+    <text x="62" y="53" class="detail">Scouter APM (Java Agent → Collector)</text>
+  </g>
+
+  <!-- ===== APP CLUSTER: Services with metrics endpoints ===== -->
+  <g transform="translate(30,110)">
+    <rect width="700" height="260" rx="10" fill="#fff" stroke="#3b82f6" stroke-width="1.5" filter="url(#sh)"/>
+    <rect width="700" height="26" rx="10" fill="#3b82f6"/>
+    <rect y="13" width="700" height="13" fill="#3b82f6"/>
+    <text x="350" y="19" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">App Cluster (dev / staging / prod) — ecommerce 네임스페이스</text>
+
+    <!-- Services -->
+    <g transform="translate(15,38)">
+      <rect width="210" height="52" rx="6" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">order-service (Java)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/actuator/prometheus</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">jvm_memory, http_server_requests</text>
+      <circle cx="198" cy="10" r="6" fill="#8b5cf6"/>
+      <text x="198" y="13" text-anchor="middle" fill="#fff" font-size="7">S</text>
+    </g>
+
+    <g transform="translate(240,38)">
+      <rect width="210" height="52" rx="6" fill="#ecfdf5" stroke="#86efac"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">product-service (Node.js)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/metrics (prom-client)</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">http_requests_total, cache_hit_ratio</text>
+    </g>
+
+    <g transform="translate(465,38)">
+      <rect width="210" height="52" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">cart-service (Go)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/metrics (promhttp)</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">http_requests_total, cart_checkouts</text>
+    </g>
+
+    <g transform="translate(15,100)">
+      <rect width="210" height="52" rx="6" fill="#fefce8" stroke="#fde68a"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">user-service (Python)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/metrics (prometheus-fastapi)</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">http_requests_total, auth_attempts</text>
+    </g>
+
+    <g transform="translate(240,100)">
+      <rect width="210" height="52" rx="6" fill="#fff1f2" stroke="#fecaca"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">review-service (Rust)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/metrics (actix-web-prom)</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">http_requests_total, review_count</text>
+    </g>
+
+    <g transform="translate(465,100)">
+      <rect width="210" height="52" rx="6" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="105" y="16" text-anchor="middle" class="svc">notification-worker (Node.js)</text>
+      <text x="105" y="30" text-anchor="middle" class="metric">/metrics (prom-client)</text>
+      <text x="105" y="42" text-anchor="middle" class="metric">messages_consumed, notifications_sent</text>
+    </g>
+
+    <!-- Scouter Agent indicator -->
+    <text x="206" y="62" class="detail" fill="#8b5cf6">← Scouter Java Agent (-javaagent)</text>
+
+    <!-- ServiceMonitor CRD -->
+    <g transform="translate(15,168)">
+      <rect width="660" height="38" rx="6" fill="#fef2f2" stroke="#fca5a5" stroke-dasharray="4,2"/>
+      <text x="330" y="15" text-anchor="middle" class="svc" fill="#e74c3c">ServiceMonitor CRD (Prometheus Operator)</text>
+      <text x="330" y="30" text-anchor="middle" class="detail">monitoring.coreos.com/v1 | selector: matchLabels → endpoints: [port, path, interval: 15s]</text>
+    </g>
+
+    <!-- Fluentd DaemonSet -->
+    <g transform="translate(15,216)">
+      <rect width="660" height="28" rx="6" fill="#fef3c7" stroke="#fde68a" stroke-dasharray="4,2"/>
+      <text x="330" y="18" text-anchor="middle" class="svc" fill="#d97706">Fluentd DaemonSet → /var/log/containers/*.log 수집 → 파싱 → K8s 메타데이터 추가</text>
+    </g>
+  </g>
+
+  <!-- ===== PLATFORM CLUSTER ===== -->
+  <g transform="translate(30,400)">
+    <rect width="1040" height="260" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.5" filter="url(#sh)"/>
+    <rect width="1040" height="26" rx="10" fill="#10b981"/>
+    <rect y="13" width="1040" height="13" fill="#10b981"/>
+    <text x="520" y="19" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">Platform Cluster — 모니터링 수집/시각화/알림</text>
+
+    <!-- Pillar 1: Metrics -->
+    <g transform="translate(15,38)">
+      <rect width="330" height="200" rx="8" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="165" y="18" text-anchor="middle" class="svc" fill="#e74c3c">Pillar 1: Metrics (메트릭)</text>
+
+      <g transform="translate(10,28)">
+        <rect width="145" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="72" y="18" text-anchor="middle" class="svc">Prometheus</text>
+        <text x="72" y="32" text-anchor="middle" class="detail">TSDB 시계열 저장</text>
+        <text x="72" y="44" text-anchor="middle" class="metric">:9090 | 15일 보관</text>
+      </g>
+
+      <g transform="translate(170,28)">
+        <rect width="145" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="72" y="18" text-anchor="middle" class="svc">Grafana</text>
+        <text x="72" y="32" text-anchor="middle" class="detail">대시보드 시각화</text>
+        <text x="72" y="44" text-anchor="middle" class="metric">:30300 | admin</text>
+      </g>
+
+      <line x1="155" y1="55" x2="170" y2="55" class="arrow"/>
+
+      <g transform="translate(10,90)">
+        <rect width="305" height="48" rx="6" fill="#fff8f8" stroke="#fecaca"/>
+        <text x="152" y="15" text-anchor="middle" class="svc">PrometheusRule (SLA 알림)</text>
+        <text x="20" y="30" class="metric">OrderServiceHighLatency: P99 > 1s → warning</text>
+        <text x="20" y="42" class="metric">HighErrorRate: 5xx > 1% → critical</text>
+      </g>
+
+      <g transform="translate(10,146)">
+        <rect width="305" height="42" rx="6" fill="#fff8f8" stroke="#fecaca"/>
+        <text x="152" y="15" text-anchor="middle" class="svc">Alertmanager</text>
+        <text x="20" y="30" class="metric">HPAMaxedOut, PodRestartLoop, RabbitMQQueueBacklog</text>
+      </g>
+    </g>
+
+    <!-- Pillar 2: Logs -->
+    <g transform="translate(360,38)">
+      <rect width="330" height="200" rx="8" fill="#fef3c7" stroke="#fde68a"/>
+      <text x="165" y="18" text-anchor="middle" class="svc" fill="#d97706">Pillar 2: Logs (로그)</text>
+
+      <g transform="translate(10,28)">
+        <rect width="145" height="50" rx="6" fill="#fff" stroke="#f59e0b"/>
+        <text x="72" y="18" text-anchor="middle" class="svc">Elasticsearch</text>
+        <text x="72" y="32" text-anchor="middle" class="detail">로그 인덱싱/검색</text>
+        <text x="72" y="44" text-anchor="middle" class="metric">:9200 | 10Gi PVC</text>
+      </g>
+
+      <g transform="translate(170,28)">
+        <rect width="145" height="50" rx="6" fill="#fff" stroke="#f59e0b"/>
+        <text x="72" y="18" text-anchor="middle" class="svc">Kibana</text>
+        <text x="72" y="32" text-anchor="middle" class="detail">로그 시각화/검색</text>
+        <text x="72" y="44" text-anchor="middle" class="metric">:30561</text>
+      </g>
+
+      <line x1="155" y1="55" x2="170" y2="55" class="arrow"/>
+
+      <g transform="translate(10,90)">
+        <rect width="305" height="48" rx="6" fill="#fffbeb" stroke="#fde68a"/>
+        <text x="152" y="15" text-anchor="middle" class="svc">EFK Stack 파이프라인</text>
+        <text x="20" y="30" class="metric">Pod stdout → containerd log → Fluentd → ES → Kibana</text>
+        <text x="20" y="42" class="metric">Index: ecommerce-logs-* | Time: @timestamp</text>
+      </g>
+
+      <g transform="translate(10,146)">
+        <rect width="305" height="42" rx="6" fill="#fffbeb" stroke="#fde68a"/>
+        <text x="152" y="15" text-anchor="middle" class="svc">로그 검색 예시</text>
+        <text x="20" y="30" class="metric">kubernetes.labels.app:"order-service" AND level:"ERROR"</text>
+      </g>
+    </g>
+
+    <!-- Pillar 3: Traces -->
+    <g transform="translate(705,38)">
+      <rect width="320" height="200" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <text x="160" y="18" text-anchor="middle" class="svc" fill="#7c3aed">Pillar 3: Traces (추적)</text>
+
+      <g transform="translate(10,28)">
+        <rect width="135" height="50" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="67" y="18" text-anchor="middle" class="svc">Scouter</text>
+        <text x="67" y="32" text-anchor="middle" class="detail">Collector</text>
+        <text x="67" y="44" text-anchor="middle" class="metric">:6100 TCP/UDP</text>
+      </g>
+
+      <g transform="translate(160,28)">
+        <rect width="145" height="50" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="72" y="18" text-anchor="middle" class="svc">Scouter WebApp</text>
+        <text x="72" y="32" text-anchor="middle" class="detail">APM 대시보드 (Paper)</text>
+        <text x="72" y="44" text-anchor="middle" class="metric">:30618</text>
+      </g>
+
+      <line x1="145" y1="55" x2="160" y2="55" class="arrow"/>
+
+      <g transform="translate(10,90)">
+        <rect width="295" height="48" rx="6" fill="#faf5ff" stroke="#c4b5fd"/>
+        <text x="147" y="15" text-anchor="middle" class="svc">Scouter Java Agent 수집 항목</text>
+        <text x="20" y="30" class="metric">HTTP 트랜잭션 응답시간, TPS, Active 스레드</text>
+        <text x="20" y="42" class="metric">SQL 쿼리 시간/횟수, Slow Query, JVM GC/Heap</text>
+      </g>
+
+      <g transform="translate(10,146)">
+        <rect width="295" height="42" rx="6" fill="#faf5ff" stroke="#c4b5fd"/>
+        <text x="147" y="15" text-anchor="middle" class="svc">대상 서비스</text>
+        <text x="20" y="30" class="metric">order-service (Java) 전용 — -javaagent 옵션 주입</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrows from App → Platform -->
+  <path d="M380,370 L195,400" class="arrow-prom"/>
+  <text x="260" y="380" class="detail" fill="#e74c3c">Prometheus Pull (15s)</text>
+
+  <path d="M380,370 L540,400" class="arrow-log"/>
+  <text x="480" y="380" class="detail" fill="#d97706">Fluentd Push</text>
+
+  <path d="M200,370 L870,400" class="arrow-apm"/>
+  <text x="650" y="390" class="detail" fill="#7c3aed">Scouter Agent UDP</text>
+</svg>

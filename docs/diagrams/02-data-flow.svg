@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 750" font-family="'Pretendard','Noto Sans KR',sans-serif">
+  <defs>
+    <style>
+      .title{font-size:20px;font-weight:700;fill:#1a1a2e}
+      .sub{font-size:12px;fill:#555}
+      .svc{font-size:11px;font-weight:600;fill:#1a1a2e}
+      .detail{font-size:9px;fill:#666}
+      .db-name{font-size:12px;font-weight:700;fill:#fff}
+      .key{font-size:9px;fill:#475569;font-family:monospace}
+      .arrow-w{stroke:#3b82f6;stroke-width:2;fill:none;marker-end:url(#aw)}
+      .arrow-r{stroke:#10b981;stroke-width:2;fill:none;marker-end:url(#ar)}
+      .arrow-mq{stroke:#ef4444;stroke-width:2;stroke-dasharray:6,3;fill:none;marker-end:url(#amq)}
+    </style>
+    <marker id="aw" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#3b82f6"/></marker>
+    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#10b981"/></marker>
+    <marker id="amq" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/></filter>
+  </defs>
+
+  <rect width="1100" height="750" fill="#f8fafc" rx="12"/>
+  <text x="550" y="35" text-anchor="middle" class="title">Data Flow: 서비스 ↔ 데이터베이스 ↔ 메시지큐</text>
+
+  <!-- Legend -->
+  <g transform="translate(780,50)">
+    <rect width="290" height="60" rx="6" fill="#fff" stroke="#e2e8f0" filter="url(#sh)"/>
+    <line x1="15" y1="18" x2="55" y2="18" stroke="#3b82f6" stroke-width="2" marker-end="url(#aw)"/>
+    <text x="62" y="22" class="detail">Write (쓰기)</text>
+    <line x1="15" y1="36" x2="55" y2="36" stroke="#10b981" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="62" y="40" class="detail">Read (읽기) / Cache Hit</text>
+    <line x1="150" y1="18" x2="190" y2="18" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#amq)"/>
+    <text x="197" y="22" class="detail">비동기 메시지</text>
+  </g>
+
+  <!-- ===== SERVICES ROW ===== -->
+  <g transform="translate(30,90)">
+    <!-- order-service -->
+    <g transform="translate(0,0)">
+      <rect width="155" height="70" rx="8" fill="#f5f3ff" stroke="#8b5cf6" filter="url(#sh)"/>
+      <text x="78" y="20" text-anchor="middle" class="svc">order-service</text>
+      <text x="78" y="35" text-anchor="middle" class="detail">Java / Spring Boot</text>
+      <text x="78" y="50" text-anchor="middle" class="detail">@Transactional + AMQP</text>
+      <text x="78" y="63" text-anchor="middle" class="key">:8080</text>
+    </g>
+
+    <!-- product-service -->
+    <g transform="translate(185,0)">
+      <rect width="155" height="70" rx="8" fill="#ecfdf5" stroke="#10b981" filter="url(#sh)"/>
+      <text x="78" y="20" text-anchor="middle" class="svc">product-service</text>
+      <text x="78" y="35" text-anchor="middle" class="detail">Node.js / Express</text>
+      <text x="78" y="50" text-anchor="middle" class="detail">Read-Through Cache</text>
+      <text x="78" y="63" text-anchor="middle" class="key">:3001</text>
+    </g>
+
+    <!-- cart-service -->
+    <g transform="translate(370,0)">
+      <rect width="155" height="70" rx="8" fill="#eff6ff" stroke="#3b82f6" filter="url(#sh)"/>
+      <text x="78" y="20" text-anchor="middle" class="svc">cart-service</text>
+      <text x="78" y="35" text-anchor="middle" class="detail">Go / net/http</text>
+      <text x="78" y="50" text-anchor="middle" class="detail">Redis Hash CRUD</text>
+      <text x="78" y="63" text-anchor="middle" class="key">:8081</text>
+    </g>
+
+    <!-- user-service -->
+    <g transform="translate(555,0)">
+      <rect width="155" height="70" rx="8" fill="#fefce8" stroke="#eab308" filter="url(#sh)"/>
+      <text x="78" y="20" text-anchor="middle" class="svc">user-service</text>
+      <text x="78" y="35" text-anchor="middle" class="detail">Python / FastAPI</text>
+      <text x="78" y="50" text-anchor="middle" class="detail">JWT + bcrypt</text>
+      <text x="78" y="63" text-anchor="middle" class="key">:8000</text>
+    </g>
+
+    <!-- review-service -->
+    <g transform="translate(740,0)">
+      <rect width="155" height="70" rx="8" fill="#fff1f2" stroke="#f43f5e" filter="url(#sh)"/>
+      <text x="78" y="20" text-anchor="middle" class="svc">review-service</text>
+      <text x="78" y="35" text-anchor="middle" class="detail">Rust / Actix-web</text>
+      <text x="78" y="50" text-anchor="middle" class="detail">Aggregation Pipeline</text>
+      <text x="78" y="63" text-anchor="middle" class="key">:8082</text>
+    </g>
+
+    <!-- notification-worker -->
+    <g transform="translate(925,0)">
+      <rect width="135" height="70" rx="8" fill="#fef2f2" stroke="#ef4444" filter="url(#sh)"/>
+      <text x="68" y="20" text-anchor="middle" class="svc">notification</text>
+      <text x="68" y="35" text-anchor="middle" class="detail">Node.js / amqplib</text>
+      <text x="68" y="50" text-anchor="middle" class="detail">MQ Consumer</text>
+      <text x="68" y="63" text-anchor="middle" class="key">KEDA 1→10</text>
+    </g>
+  </g>
+
+  <!-- ===== ARROWS: Services → DBs ===== -->
+  <!-- order → PostgreSQL (write) -->
+  <path d="M108,230 L108,320" class="arrow-w"/>
+  <text x="115" y="280" class="key" fill="#3b82f6">INSERT orders</text>
+
+  <!-- order → PostgreSQL (read) -->
+  <path d="M130,230 L160,320" class="arrow-r"/>
+
+  <!-- user → PostgreSQL (write) -->
+  <path d="M663,230 L200,320" class="arrow-w"/>
+  <text x="400" y="265" class="key" fill="#3b82f6">INSERT users</text>
+
+  <!-- product → MongoDB (read/write) -->
+  <path d="M293,230 L440,320" class="arrow-w"/>
+  <path d="M320,230 L465,320" class="arrow-r"/>
+  <text x="345" y="280" class="key" fill="#3b82f6">products 컬렉션</text>
+
+  <!-- review → MongoDB (write) -->
+  <path d="M848,230 L510,320" class="arrow-w"/>
+  <text x="700" y="265" class="key" fill="#3b82f6">reviews 컬렉션</text>
+
+  <!-- product → Redis (cache read) -->
+  <path d="M340,230 L720,320" class="arrow-r"/>
+  <text x="520" y="250" class="key" fill="#10b981">cache:GET (TTL 60s)</text>
+
+  <!-- cart → Redis (hash) -->
+  <path d="M478,230 L745,320" class="arrow-w"/>
+  <path d="M502,230 L770,320" class="arrow-r"/>
+  <text x="575" y="297" class="key" fill="#3b82f6">HSET cart:{userId}</text>
+
+  <!-- user → Redis (session) -->
+  <path d="M688,230 L795,320" class="arrow-w"/>
+  <text x="730" y="285" class="key" fill="#3b82f6">SET session:{id}</text>
+
+  <!-- ===== DATABASE BOXES ===== -->
+  <!-- PostgreSQL -->
+  <g transform="translate(40,320)">
+    <rect width="250" height="150" rx="10" fill="#fff" stroke="#3b82f6" stroke-width="2" filter="url(#sh)"/>
+    <rect width="250" height="28" rx="10" fill="#3b82f6"/>
+    <rect y="14" width="250" height="14" fill="#3b82f6"/>
+    <text x="125" y="20" text-anchor="middle" class="db-name">PostgreSQL 16 (ACID)</text>
+    <text x="20" y="52" class="key">Database: orderdb</text>
+    <text x="20" y="68" class="key">├── orders (id, user_id, status, total)</text>
+    <text x="20" y="84" class="key">├── order_items (order_id, product_id)</text>
+    <text x="20" y="100" class="key">└── users (id, email, password_hash)</text>
+    <text x="20" y="120" class="detail">StatefulSet | PVC 5Gi | pg_isready probe</text>
+    <text x="20" y="136" class="detail">연결: order-service, user-service</text>
+  </g>
+
+  <!-- MongoDB -->
+  <g transform="translate(340,320)">
+    <rect width="250" height="150" rx="10" fill="#fff" stroke="#10b981" stroke-width="2" filter="url(#sh)"/>
+    <rect width="250" height="28" rx="10" fill="#10b981"/>
+    <rect y="14" width="250" height="14" fill="#10b981"/>
+    <text x="125" y="20" text-anchor="middle" class="db-name">MongoDB 7 (Document)</text>
+    <text x="20" y="52" class="key">Database: products</text>
+    <text x="20" y="68" class="key">├── products (name, price, category,</text>
+    <text x="20" y="84" class="key">│   variants, images, ratings)</text>
+    <text x="20" y="100" class="key">└── reviews (product_id, user_id,</text>
+    <text x="20" y="116" class="key">    rating, comment)</text>
+    <text x="20" y="136" class="detail">StatefulSet | PVC 5Gi | Schema.Types.Mixed</text>
+  </g>
+
+  <!-- Redis -->
+  <g transform="translate(640,320)">
+    <rect width="270" height="150" rx="10" fill="#fff" stroke="#ef4444" stroke-width="2" filter="url(#sh)"/>
+    <rect width="270" height="28" rx="10" fill="#ef4444"/>
+    <rect y="14" width="270" height="14" fill="#ef4444"/>
+    <text x="135" y="20" text-anchor="middle" class="db-name">Redis 7 (In-Memory)</text>
+    <text x="20" y="52" class="key">1. 상품 캐시 (product-service)</text>
+    <text x="20" y="66" class="key">   cache:/api/products → TTL 60s</text>
+    <text x="20" y="84" class="key">2. 장바구니 (cart-service)</text>
+    <text x="20" y="98" class="key">   cart:{userId} → Hash, TTL 24h</text>
+    <text x="20" y="116" class="key">3. 세션 (user-service)</text>
+    <text x="20" y="130" class="key">   session:{sessionId} → TTL 60m</text>
+    <text x="20" y="146" class="detail">maxmemory-policy: allkeys-lru (200MB)</text>
+  </g>
+
+  <!-- ===== RabbitMQ SECTION ===== -->
+  <g transform="translate(40,510)">
+    <rect width="1020" height="220" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="2" filter="url(#sh)"/>
+    <rect width="1020" height="28" rx="10" fill="#f59e0b"/>
+    <rect y="14" width="1020" height="14" fill="#f59e0b"/>
+    <text x="510" y="20" text-anchor="middle" class="db-name">RabbitMQ 3 — Topic Exchange 기반 비동기 이벤트</text>
+
+    <!-- Producer -->
+    <g transform="translate(30,45)">
+      <rect width="180" height="55" rx="8" fill="#f5f3ff" stroke="#8b5cf6"/>
+      <text x="90" y="20" text-anchor="middle" class="svc">order-service</text>
+      <text x="90" y="35" text-anchor="middle" class="detail">PUBLISH to order.exchange</text>
+      <text x="90" y="48" text-anchor="middle" class="detail">Spring AMQP RabbitTemplate</text>
+    </g>
+
+    <!-- Exchange -->
+    <g transform="translate(280,40)">
+      <rect width="160" height="65" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+      <text x="80" y="22" text-anchor="middle" class="svc">order.exchange</text>
+      <text x="80" y="38" text-anchor="middle" class="detail">Type: Topic</text>
+      <text x="80" y="52" text-anchor="middle" class="detail">Routing Key 매칭</text>
+    </g>
+
+    <!-- Queues -->
+    <g transform="translate(510,35)">
+      <rect width="170" height="22" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="85" y="16" text-anchor="middle" class="key">order.created (KEDA ≥5)</text>
+    </g>
+    <g transform="translate(510,62)">
+      <rect width="170" height="22" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="85" y="16" text-anchor="middle" class="key">order.shipped (KEDA ≥5)</text>
+    </g>
+    <g transform="translate(510,89)">
+      <rect width="170" height="22" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="85" y="16" text-anchor="middle" class="key">order.cancelled (KEDA ≥5)</text>
+    </g>
+
+    <!-- Consumer -->
+    <g transform="translate(750,45)">
+      <rect width="200" height="55" rx="8" fill="#fef2f2" stroke="#ef4444"/>
+      <text x="100" y="20" text-anchor="middle" class="svc">notification-worker</text>
+      <text x="100" y="35" text-anchor="middle" class="detail">3개 큐 동시 CONSUME + ACK</text>
+      <text x="100" y="48" text-anchor="middle" class="detail">Email/SMS/Push 시뮬레이션</text>
+    </g>
+
+    <!-- Arrows in MQ -->
+    <line x1="210" y1="72" x2="278" y2="72" class="arrow-mq"/>
+    <line x1="440" y1="60" x2="508" y2="46" class="arrow-mq"/>
+    <line x1="440" y1="72" x2="508" y2="73" class="arrow-mq"/>
+    <line x1="440" y1="84" x2="508" y2="100" class="arrow-mq"/>
+    <line x1="680" y1="46" x2="748" y2="62" class="arrow-mq"/>
+    <line x1="680" y1="73" x2="748" y2="73" class="arrow-mq"/>
+    <line x1="680" y1="100" x2="748" y2="84" class="arrow-mq"/>
+
+    <!-- Flow description -->
+    <g transform="translate(30,125)">
+      <rect width="960" height="70" rx="6" fill="#fefce8" stroke="#fde68a"/>
+      <text x="480" y="18" text-anchor="middle" class="svc">메시지 흐름 (Event-Driven Architecture)</text>
+      <text x="30" y="38" class="detail">1. order-service가 주문 생성 → order.exchange에 PUBLISH (routing key: order.created)</text>
+      <text x="30" y="52" class="detail">2. Topic Exchange가 routing key와 일치하는 큐로 메시지 라우팅</text>
+      <text x="30" y="66" class="detail">3. notification-worker가 큐에서 메시지 CONSUME → 알림 발송 시뮬레이션 → ACK → Redis에 이력 저장 (LPUSH, max 100)</text>
+    </g>
+  </g>
+</svg>

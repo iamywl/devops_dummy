@@ -19,8 +19,8 @@ SKIP_LOAD="${SKIP_LOAD:-false}"
 # ─── 클러스터별 워커 노드 매핑 ───
 declare -A WORKERS
 WORKERS[dev]="dev-worker1"
-WORKERS[staging]="staging-worker1 staging-worker2"
-WORKERS[prod]="prod-worker1 prod-worker2 prod-worker3 prod-worker4"
+WORKERS[staging]="staging-worker1"
+WORKERS[prod]="prod-worker1 prod-worker2"
 
 IMAGES=("order-service" "product-service" "cart-service" "user-service" "review-service" "notification-worker" "frontend")
 

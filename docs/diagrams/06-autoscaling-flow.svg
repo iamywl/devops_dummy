@@ -1,0 +1,289 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 780" font-family="'Pretendard','Noto Sans KR',sans-serif">
+  <defs>
+    <style>
+      .title{font-size:20px;font-weight:700;fill:#1a1a2e}
+      .svc{font-size:11px;font-weight:600;fill:#1a1a2e}
+      .detail{font-size:9px;fill:#666}
+      .metric{font-size:8px;fill:#475569;font-family:monospace}
+      .formula{font-size:9px;fill:#7c3aed;font-family:monospace;font-weight:600}
+      .arrow{stroke:#64748b;stroke-width:1.5;fill:none;marker-end:url(#a1)}
+      .arrow-up{stroke:#ef4444;stroke-width:2;fill:none;marker-end:url(#au)}
+      .arrow-down{stroke:#3b82f6;stroke-width:2;fill:none;marker-end:url(#ad)}
+      .arrow-keda{stroke:#10b981;stroke-width:2;fill:none;marker-end:url(#ak)}
+    </style>
+    <marker id="a1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#64748b"/></marker>
+    <marker id="au" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker>
+    <marker id="ad" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#3b82f6"/></marker>
+    <marker id="ak" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#10b981"/></marker>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/></filter>
+  </defs>
+
+  <rect width="1100" height="780" fill="#f8fafc" rx="12"/>
+  <text x="550" y="35" text-anchor="middle" class="title">Autoscaling Flow — HPA (CPU/Memory) + KEDA (Event-Driven)</text>
+
+  <!-- Legend -->
+  <g transform="translate(750,48)">
+    <rect width="320" height="55" rx="6" fill="#fff" stroke="#e2e8f0" filter="url(#sh)"/>
+    <line x1="15" y1="15" x2="55" y2="15" stroke="#ef4444" stroke-width="2" marker-end="url(#au)"/>
+    <text x="62" y="19" class="detail">Scale Up (확장)</text>
+    <line x1="15" y1="32" x2="55" y2="32" stroke="#3b82f6" stroke-width="2" marker-end="url(#ad)"/>
+    <text x="62" y="36" class="detail">Scale Down (축소)</text>
+    <line x1="15" y1="49" x2="55" y2="49" stroke="#10b981" stroke-width="2" marker-end="url(#ak)"/>
+    <text x="62" y="53" class="detail">KEDA 이벤트 기반 스케일링</text>
+  </g>
+
+  <!-- ===== HPA Section ===== -->
+  <g transform="translate(30,110)">
+    <rect width="1040" height="370" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="2" filter="url(#sh)"/>
+    <rect width="1040" height="28" rx="10" fill="#8b5cf6"/>
+    <rect y="14" width="1040" height="14" fill="#8b5cf6"/>
+    <text x="520" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">HPA (Horizontal Pod Autoscaler) — CPU/Memory 기반 스케일링</text>
+
+    <!-- Control Loop -->
+    <g transform="translate(15,40)">
+      <rect width="1010" height="95" rx="8" fill="#faf5ff" stroke="#e9d5ff"/>
+      <text x="505" y="18" text-anchor="middle" class="svc">HPA 컨트롤 루프 (15초 주기)</text>
+
+      <!-- Step 1: metrics-server -->
+      <g transform="translate(10,28)">
+        <rect width="165" height="55" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="82" y="18" text-anchor="middle" class="svc">metrics-server</text>
+        <text x="82" y="32" text-anchor="middle" class="detail">kubelet /metrics/resource</text>
+        <text x="82" y="44" text-anchor="middle" class="detail">CPU/Memory 수집 (15s)</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="175" y1="55" x2="200" y2="55" class="arrow"/>
+
+      <!-- Step 2: HPA Controller -->
+      <g transform="translate(200,28)">
+        <rect width="200" height="55" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="100" y="18" text-anchor="middle" class="svc">HPA Controller</text>
+        <text x="100" y="32" text-anchor="middle" class="formula">desiredReplicas = ceil(</text>
+        <text x="100" y="44" text-anchor="middle" class="formula">  current × (current/target))</text>
+      </g>
+
+      <line x1="400" y1="55" x2="425" y2="55" class="arrow"/>
+
+      <!-- Step 3: Stabilization -->
+      <g transform="translate(425,28)">
+        <rect width="200" height="55" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="100" y="18" text-anchor="middle" class="svc">Stabilization Window</text>
+        <text x="100" y="32" text-anchor="middle" class="metric">Scale Up: 30s (빠르게 확장)</text>
+        <text x="100" y="44" text-anchor="middle" class="metric">Scale Down: 300s (천천히 축소)</text>
+      </g>
+
+      <line x1="625" y1="55" x2="650" y2="55" class="arrow"/>
+
+      <!-- Step 4: Apply -->
+      <g transform="translate(650,28)">
+        <rect width="170" height="55" rx="6" fill="#fff" stroke="#8b5cf6"/>
+        <text x="85" y="18" text-anchor="middle" class="svc">Scale 실행</text>
+        <text x="85" y="32" text-anchor="middle" class="metric">Up: max 3 pods/60s 또는 50%</text>
+        <text x="85" y="44" text-anchor="middle" class="metric">Down: 1 pod/120s (안전)</text>
+      </g>
+
+      <line x1="820" y1="55" x2="845" y2="55" class="arrow"/>
+
+      <!-- Step 5: Result -->
+      <g transform="translate(845,28)">
+        <rect width="150" height="55" rx="6" fill="#fef2f2" stroke="#fecaca"/>
+        <text x="75" y="18" text-anchor="middle" class="svc">Pod 수 변경</text>
+        <text x="75" y="32" text-anchor="middle" class="metric">min ≤ replicas ≤ max</text>
+        <text x="75" y="44" text-anchor="middle" class="detail">Deployment 패치</text>
+      </g>
+    </g>
+
+    <!-- HPA Targets Table -->
+    <g transform="translate(15,148)">
+      <rect width="1010" height="210" rx="8" fill="#fff" stroke="#e2e8f0"/>
+      <text x="505" y="18" text-anchor="middle" class="svc">prod 환경 HPA 설정 (6개 Deployment)</text>
+
+      <!-- Table Header -->
+      <g transform="translate(10,28)">
+        <rect width="990" height="22" rx="4" fill="#f1f5f9"/>
+        <text x="10" y="15" class="svc" font-size="9">서비스</text>
+        <text x="180" y="15" class="svc" font-size="9">min</text>
+        <text x="230" y="15" class="svc" font-size="9">max</text>
+        <text x="290" y="15" class="svc" font-size="9">CPU Target</text>
+        <text x="400" y="15" class="svc" font-size="9">Memory Target</text>
+        <text x="530" y="15" class="svc" font-size="9">Scale Up</text>
+        <text x="720" y="15" class="svc" font-size="9">Scale Down</text>
+        <text x="900" y="15" class="svc" font-size="9">특징</text>
+      </g>
+
+      <!-- order-service -->
+      <g transform="translate(10,54)">
+        <rect width="990" height="22" rx="2" fill="#f5f3ff"/>
+        <text x="10" y="15" class="metric">prod-order-service</text>
+        <text x="180" y="15" class="metric">3</text>
+        <text x="230" y="15" class="metric">10</text>
+        <text x="290" y="15" class="metric">50%</text>
+        <text x="400" y="15" class="metric">70%</text>
+        <text x="530" y="15" class="metric">30s stab, 3 pods/60s or 50%</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">핵심 서비스</text>
+      </g>
+
+      <!-- product-service -->
+      <g transform="translate(10,78)">
+        <rect width="990" height="22" rx="2" fill="#fff"/>
+        <text x="10" y="15" class="metric">prod-product-service</text>
+        <text x="180" y="15" class="metric">3</text>
+        <text x="230" y="15" class="metric">10</text>
+        <text x="290" y="15" class="metric">50%</text>
+        <text x="400" y="15" class="metric">70%</text>
+        <text x="530" y="15" class="metric">30s stab, 3 pods/60s or 50%</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">읽기 집중</text>
+      </g>
+
+      <!-- cart-service -->
+      <g transform="translate(10,102)">
+        <rect width="990" height="22" rx="2" fill="#f5f3ff"/>
+        <text x="10" y="15" class="metric">prod-cart-service</text>
+        <text x="180" y="15" class="metric">3</text>
+        <text x="230" y="15" class="metric">8</text>
+        <text x="290" y="15" class="metric">50%</text>
+        <text x="400" y="15" class="metric">—</text>
+        <text x="530" y="15" class="metric">30s stab, 2 pods/60s</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">Go 저메모리</text>
+      </g>
+
+      <!-- user-service -->
+      <g transform="translate(10,126)">
+        <rect width="990" height="22" rx="2" fill="#fff"/>
+        <text x="10" y="15" class="metric">prod-user-service</text>
+        <text x="180" y="15" class="metric">3</text>
+        <text x="230" y="15" class="metric">8</text>
+        <text x="290" y="15" class="metric">50%</text>
+        <text x="400" y="15" class="metric">70%</text>
+        <text x="530" y="15" class="metric">30s stab, 2 pods/60s</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">인증 처리</text>
+      </g>
+
+      <!-- review-service -->
+      <g transform="translate(10,150)">
+        <rect width="990" height="22" rx="2" fill="#f5f3ff"/>
+        <text x="10" y="15" class="metric">prod-review-service</text>
+        <text x="180" y="15" class="metric">2</text>
+        <text x="230" y="15" class="metric">6</text>
+        <text x="290" y="15" class="metric">50%</text>
+        <text x="400" y="15" class="metric">—</text>
+        <text x="530" y="15" class="metric">30s stab, 2 pods/60s</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">Rust 경량</text>
+      </g>
+
+      <!-- nginx-static -->
+      <g transform="translate(10,174)">
+        <rect width="990" height="22" rx="2" fill="#fff"/>
+        <text x="10" y="15" class="metric">prod-nginx-static</text>
+        <text x="180" y="15" class="metric">2</text>
+        <text x="230" y="15" class="metric">6</text>
+        <text x="290" y="15" class="metric">60%</text>
+        <text x="400" y="15" class="metric">—</text>
+        <text x="530" y="15" class="metric">30s stab, 2 pods/60s</text>
+        <text x="720" y="15" class="metric">300s stab, 1 pod/120s</text>
+        <text x="900" y="15" class="metric">정적 콘텐츠</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===== KEDA Section ===== -->
+  <g transform="translate(30,505)">
+    <rect width="1040" height="255" rx="10" fill="#fff" stroke="#10b981" stroke-width="2" filter="url(#sh)"/>
+    <rect width="1040" height="28" rx="10" fill="#10b981"/>
+    <rect y="14" width="1040" height="14" fill="#10b981"/>
+    <text x="520" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">KEDA (Kubernetes Event-Driven Autoscaling) — RabbitMQ 큐 깊이 기반</text>
+
+    <!-- KEDA Flow -->
+    <g transform="translate(15,40)">
+      <!-- RabbitMQ -->
+      <g transform="translate(0,0)">
+        <rect width="180" height="85" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+        <text x="90" y="18" text-anchor="middle" class="svc">RabbitMQ</text>
+        <text x="90" y="34" text-anchor="middle" class="metric">order.created  → depth: ?</text>
+        <text x="90" y="46" text-anchor="middle" class="metric">order.shipped  → depth: ?</text>
+        <text x="90" y="58" text-anchor="middle" class="metric">order.cancelled → depth: ?</text>
+        <text x="90" y="74" text-anchor="middle" class="detail">Threshold: 각 큐 ≥ 5 messages</text>
+      </g>
+
+      <line x1="180" y1="42" x2="220" y2="42" class="arrow-keda"/>
+      <text x="200" y="35" class="detail" fill="#10b981">Poll 10s</text>
+
+      <!-- KEDA Operator -->
+      <g transform="translate(220,0)">
+        <rect width="200" height="85" rx="8" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+        <text x="100" y="18" text-anchor="middle" class="svc">KEDA Operator</text>
+        <text x="100" y="34" text-anchor="middle" class="detail">ScaledObject 감시</text>
+        <text x="100" y="48" text-anchor="middle" class="metric">pollingInterval: 10s</text>
+        <text x="100" y="60" text-anchor="middle" class="metric">cooldownPeriod: 60s</text>
+        <text x="100" y="74" text-anchor="middle" class="detail">큐 깊이 → HPA 메트릭 변환</text>
+      </g>
+
+      <line x1="420" y1="42" x2="460" y2="42" class="arrow-keda"/>
+
+      <!-- ScaledObject -->
+      <g transform="translate(460,0)">
+        <rect width="220" height="85" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+        <text x="110" y="18" text-anchor="middle" class="svc">ScaledObject</text>
+        <text x="110" y="34" text-anchor="middle" class="metric">notification-worker-scaler</text>
+        <text x="110" y="48" text-anchor="middle" class="metric">target: prod-notification-worker</text>
+        <text x="110" y="60" text-anchor="middle" class="metric">min: 1 → max: 10</text>
+        <text x="110" y="74" text-anchor="middle" class="detail">3개 큐 트리거 동시 감시</text>
+      </g>
+
+      <line x1="680" y1="42" x2="720" y2="42" class="arrow-keda"/>
+
+      <!-- notification-worker -->
+      <g transform="translate(720,0)">
+        <rect width="280" height="85" rx="8" fill="#fef2f2" stroke="#ef4444"/>
+        <text x="140" y="18" text-anchor="middle" class="svc">prod-notification-worker</text>
+        <text x="140" y="34" text-anchor="middle" class="detail">Node.js / amqplib | CONSUME + ACK</text>
+        <text x="140" y="50" text-anchor="middle" class="metric">Scale Up: 0s stab, 3 pods/30s (즉시)</text>
+        <text x="140" y="62" text-anchor="middle" class="metric">Scale Down: 120s stab, 1 pod/60s</text>
+        <text x="140" y="76" text-anchor="middle" class="detail">큐 비면 60s 대기 후 축소 시작</text>
+      </g>
+    </g>
+
+    <!-- Scenario -->
+    <g transform="translate(15,138)">
+      <rect width="1010" height="105" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/>
+      <text x="505" y="18" text-anchor="middle" class="svc">KEDA 스케일링 시나리오 예시</text>
+
+      <!-- Timeline -->
+      <g transform="translate(20,28)">
+        <!-- Phase 1 -->
+        <rect width="225" height="65" rx="6" fill="#fff" stroke="#d1fae5"/>
+        <text x="112" y="14" text-anchor="middle" class="svc" fill="#10b981">T+0s: 평상시</text>
+        <text x="112" y="30" text-anchor="middle" class="metric">큐 깊이: 0~2 messages</text>
+        <text x="112" y="42" text-anchor="middle" class="metric">replicas: 1 (min)</text>
+        <text x="112" y="56" text-anchor="middle" class="detail">Worker 1개가 실시간 처리</text>
+      </g>
+      <g transform="translate(260,28)">
+        <rect width="225" height="65" rx="6" fill="#fff" stroke="#fde68a"/>
+        <text x="112" y="14" text-anchor="middle" class="svc" fill="#d97706">T+10s: 주문 폭증</text>
+        <text x="112" y="30" text-anchor="middle" class="metric">큐 깊이: 15+ messages</text>
+        <text x="112" y="42" text-anchor="middle" class="metric">KEDA 감지 → 3 pods 즉시 추가</text>
+        <text x="112" y="56" text-anchor="middle" class="detail">0s stabilization (즉시 반응)</text>
+      </g>
+      <g transform="translate(500,28)">
+        <rect width="225" height="65" rx="6" fill="#fff" stroke="#fecaca"/>
+        <text x="112" y="14" text-anchor="middle" class="svc" fill="#ef4444">T+40s: 피크 지속</text>
+        <text x="112" y="30" text-anchor="middle" class="metric">큐 깊이: 50+ messages</text>
+        <text x="112" y="42" text-anchor="middle" class="metric">replicas: 10 (max)</text>
+        <text x="112" y="56" text-anchor="middle" class="detail">max 도달 시 더 이상 확장 불가</text>
+      </g>
+      <g transform="translate(740,28)">
+        <rect width="255" height="65" rx="6" fill="#fff" stroke="#bfdbfe"/>
+        <text x="127" y="14" text-anchor="middle" class="svc" fill="#3b82f6">T+5m: 트래픽 감소</text>
+        <text x="127" y="30" text-anchor="middle" class="metric">큐 깊이: 0 → cooldown 60s 대기</text>
+        <text x="127" y="42" text-anchor="middle" class="metric">120s stabilization → 1 pod/60s 축소</text>
+        <text x="127" y="56" text-anchor="middle" class="detail">점진적으로 min(1)까지 축소</text>
+      </g>
+    </g>
+  </g>
+</svg>

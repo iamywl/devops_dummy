@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family="'Pretendard','Noto Sans KR',sans-serif">
+  <defs>
+    <style>
+      .title{font-size:20px;font-weight:700;fill:#1a1a2e}
+      .svc{font-size:11px;font-weight:600;fill:#1a1a2e}
+      .detail{font-size:9px;fill:#666}
+      .vm-name{font-size:10px;font-weight:700;fill:#fff}
+      .spec{font-size:8px;fill:#475569;font-family:monospace}
+      .cluster-label{font-size:12px;font-weight:700;fill:#fff}
+      .total{font-size:10px;font-weight:600;fill:#334155}
+    </style>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/></filter>
+  </defs>
+
+  <rect width="1100" height="720" fill="#f8fafc" rx="12"/>
+  <text x="550" y="35" text-anchor="middle" class="title">VM / Cluster Topology — Tart VM 10대 × 4 K8s 클러스터</text>
+
+  <!-- Host Machine -->
+  <g transform="translate(30,55)">
+    <rect width="1040" height="75" rx="10" fill="#1e293b" filter="url(#sh)"/>
+    <text x="520" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Host: Apple Silicon Mac (M1 Pro 이상)</text>
+    <text x="520" y="42" text-anchor="middle" font-size="10" fill="#94a3b8">Physical: 16 CPU cores / 128GB RAM / SSD 1TB+</text>
+    <text x="520" y="60" text-anchor="middle" font-size="10" fill="#94a3b8">VM 할당 합계: 22 vCPU / 76GB RAM | 잔여: ~6 CPU / ~52GB (Host OS + 빌드용)</text>
+  </g>
+
+  <!-- ===== Platform Cluster ===== -->
+  <g transform="translate(30,155)">
+    <rect width="510" height="230" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="2" filter="url(#sh)"/>
+    <rect width="510" height="30" rx="10" fill="#8b5cf6"/>
+    <rect y="15" width="510" height="15" fill="#8b5cf6"/>
+    <text x="255" y="22" text-anchor="middle" class="cluster-label">Platform Cluster — 모니터링 + CI/CD + 관리</text>
+
+    <!-- platform-master -->
+    <g transform="translate(15,42)">
+      <rect width="150" height="80" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <rect width="150" height="22" rx="8" fill="#7c3aed"/>
+      <rect y="11" width="150" height="11" fill="#7c3aed"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">platform-master</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 4GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">control-plane</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">etcd, API server</text>
+      <text x="75" y="74" text-anchor="middle" class="spec">pod: 10.10.0.0/16</text>
+    </g>
+
+    <!-- platform-worker1 -->
+    <g transform="translate(180,42)">
+      <rect width="150" height="80" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <rect width="150" height="22" rx="8" fill="#7c3aed"/>
+      <rect y="11" width="150" height="11" fill="#7c3aed"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">platform-worker1</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">3 vCPU / 12GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">Prometheus, Grafana</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">EFK, ArgoCD</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">Scouter Collector</text>
+    </g>
+
+    <!-- platform-worker2 -->
+    <g transform="translate(345,42)">
+      <rect width="150" height="80" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+      <rect width="150" height="22" rx="8" fill="#7c3aed"/>
+      <rect y="11" width="150" height="11" fill="#7c3aed"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">platform-worker2</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 8GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">Elasticsearch</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">Kibana, Fluentd</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">보조 워크로드</text>
+    </g>
+
+    <!-- Cluster totals -->
+    <rect x="15" y="135" width="480" height="30" rx="6" fill="#faf5ff" stroke="#e9d5ff"/>
+    <text x="255" y="155" text-anchor="middle" class="total">합계: 7 vCPU / 24GB RAM | svc CIDR: 10.96.0.0/16 | Cilium CNI</text>
+
+    <!-- Workloads -->
+    <g transform="translate(15,175)">
+      <rect width="480" height="40" rx="6" fill="#fff" stroke="#e2e8f0"/>
+      <text x="15" y="15" class="svc">주요 워크로드:</text>
+      <text x="15" y="30" class="detail">Prometheus + Grafana (30300) | ArgoCD (30800) | Elasticsearch (9200) + Kibana (30561) | Scouter WebApp (30618) | Alertmanager</text>
+    </g>
+  </g>
+
+  <!-- ===== Dev Cluster ===== -->
+  <g transform="translate(560,155)">
+    <rect width="510" height="230" rx="10" fill="#fff" stroke="#10b981" stroke-width="2" filter="url(#sh)"/>
+    <rect width="510" height="30" rx="10" fill="#10b981"/>
+    <rect y="15" width="510" height="15" fill="#10b981"/>
+    <text x="255" y="22" text-anchor="middle" class="cluster-label">Dev Cluster — 개발 환경 (자동 배포)</text>
+
+    <!-- dev-master -->
+    <g transform="translate(15,42)">
+      <rect width="150" height="80" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+      <rect width="150" height="22" rx="8" fill="#059669"/>
+      <rect y="11" width="150" height="11" fill="#059669"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">dev-master</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 4GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">control-plane</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">etcd, API server</text>
+      <text x="75" y="74" text-anchor="middle" class="spec">pod: 10.20.0.0/16</text>
+    </g>
+
+    <!-- dev-worker1 -->
+    <g transform="translate(180,42)">
+      <rect width="150" height="80" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+      <rect width="150" height="22" rx="8" fill="#059669"/>
+      <rect y="11" width="150" height="11" fill="#059669"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">dev-worker1</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 8GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">모든 서비스 배포</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">replicas: 1</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">LOG_LEVEL: debug</text>
+    </g>
+
+    <!-- Empty slot visual -->
+    <g transform="translate(345,42)">
+      <rect width="150" height="80" rx="8" fill="#f0fdf4" stroke="#d1fae5" stroke-dasharray="4,2"/>
+      <text x="75" y="35" text-anchor="middle" class="detail" fill="#a3a3a3">확장 가능</text>
+      <text x="75" y="50" text-anchor="middle" class="detail" fill="#a3a3a3">(worker 추가 시)</text>
+    </g>
+
+    <rect x="15" y="135" width="480" height="30" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/>
+    <text x="255" y="155" text-anchor="middle" class="total">합계: 4 vCPU / 12GB RAM | svc CIDR: 10.97.0.0/16 | Cilium CNI</text>
+
+    <g transform="translate(15,175)">
+      <rect width="480" height="40" rx="6" fill="#fff" stroke="#e2e8f0"/>
+      <text x="15" y="15" class="svc">워크로드 (namePrefix: dev-):</text>
+      <text x="15" y="30" class="detail">6 서비스 × 1 replica + DB 3종 + RabbitMQ | Istio sidecar 활성화 | ArgoCD 자동 동기화</text>
+    </g>
+  </g>
+
+  <!-- ===== Staging Cluster ===== -->
+  <g transform="translate(30,410)">
+    <rect width="510" height="230" rx="10" fill="#fff" stroke="#eab308" stroke-width="2" filter="url(#sh)"/>
+    <rect width="510" height="30" rx="10" fill="#eab308"/>
+    <rect y="15" width="510" height="15" fill="#eab308"/>
+    <text x="255" y="22" text-anchor="middle" class="cluster-label">Staging Cluster — 스테이징 (수동 승인)</text>
+
+    <!-- staging-master -->
+    <g transform="translate(15,42)">
+      <rect width="150" height="80" rx="8" fill="#fefce8" stroke="#fde68a"/>
+      <rect width="150" height="22" rx="8" fill="#ca8a04"/>
+      <rect y="11" width="150" height="11" fill="#ca8a04"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">staging-master</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 4GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">control-plane</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">etcd, API server</text>
+      <text x="75" y="74" text-anchor="middle" class="spec">pod: 10.30.0.0/16</text>
+    </g>
+
+    <!-- staging-worker1 -->
+    <g transform="translate(180,42)">
+      <rect width="150" height="80" rx="8" fill="#fefce8" stroke="#fde68a"/>
+      <rect width="150" height="22" rx="8" fill="#ca8a04"/>
+      <rect y="11" width="150" height="11" fill="#ca8a04"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">staging-worker1</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 8GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">모든 서비스 배포</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">replicas: 2</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">LOG_LEVEL: info</text>
+    </g>
+
+    <g transform="translate(345,42)">
+      <rect width="150" height="80" rx="8" fill="#fefce8" stroke="#fde68a" stroke-dasharray="4,2"/>
+      <text x="75" y="35" text-anchor="middle" class="detail" fill="#a3a3a3">확장 가능</text>
+      <text x="75" y="50" text-anchor="middle" class="detail" fill="#a3a3a3">(worker 추가 시)</text>
+    </g>
+
+    <rect x="15" y="135" width="480" height="30" rx="6" fill="#fefce8" stroke="#fef08a"/>
+    <text x="255" y="155" text-anchor="middle" class="total">합계: 4 vCPU / 12GB RAM | svc CIDR: 10.98.0.0/16 | Cilium CNI</text>
+
+    <g transform="translate(15,175)">
+      <rect width="480" height="40" rx="6" fill="#fff" stroke="#e2e8f0"/>
+      <text x="15" y="15" class="svc">워크로드 (namePrefix: staging-):</text>
+      <text x="15" y="30" class="detail">6 서비스 × 2 replicas + DB 3종 + RabbitMQ | topologySpread 활성화 | ArgoCD 수동 Sync</text>
+    </g>
+  </g>
+
+  <!-- ===== Prod Cluster ===== -->
+  <g transform="translate(560,410)">
+    <rect width="510" height="230" rx="10" fill="#fff" stroke="#ef4444" stroke-width="2" filter="url(#sh)"/>
+    <rect width="510" height="30" rx="10" fill="#ef4444"/>
+    <rect y="15" width="510" height="15" fill="#ef4444"/>
+    <text x="255" y="22" text-anchor="middle" class="cluster-label">Prod Cluster — 프로덕션 (수동 승인 + HPA + KEDA)</text>
+
+    <!-- prod-master -->
+    <g transform="translate(15,42)">
+      <rect width="150" height="80" rx="8" fill="#fef2f2" stroke="#fecaca"/>
+      <rect width="150" height="22" rx="8" fill="#dc2626"/>
+      <rect y="11" width="150" height="11" fill="#dc2626"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">prod-master</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 3GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">control-plane</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">etcd, API server</text>
+      <text x="75" y="74" text-anchor="middle" class="spec">pod: 10.40.0.0/16</text>
+    </g>
+
+    <!-- prod-worker1 -->
+    <g transform="translate(180,42)">
+      <rect width="150" height="80" rx="8" fill="#fef2f2" stroke="#fecaca"/>
+      <rect width="150" height="22" rx="8" fill="#dc2626"/>
+      <rect y="11" width="150" height="11" fill="#dc2626"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">prod-worker1</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 8GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">서비스 + DB</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">antiAffinity 분산</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">PDB 적용</text>
+    </g>
+
+    <!-- prod-worker2 -->
+    <g transform="translate(345,42)">
+      <rect width="150" height="80" rx="8" fill="#fef2f2" stroke="#fecaca"/>
+      <rect width="150" height="22" rx="8" fill="#dc2626"/>
+      <rect y="11" width="150" height="11" fill="#dc2626"/>
+      <text x="75" y="16" text-anchor="middle" class="vm-name">prod-worker2</text>
+      <text x="75" y="38" text-anchor="middle" class="spec">2 vCPU / 8GB RAM</text>
+      <text x="75" y="50" text-anchor="middle" class="detail">서비스 + DB</text>
+      <text x="75" y="62" text-anchor="middle" class="detail">antiAffinity 분산</text>
+      <text x="75" y="74" text-anchor="middle" class="detail">PDB 적용</text>
+    </g>
+
+    <rect x="15" y="135" width="480" height="30" rx="6" fill="#fef2f2" stroke="#fecdd3"/>
+    <text x="255" y="155" text-anchor="middle" class="total">합계: 6 vCPU / 19GB RAM | svc CIDR: 10.99.0.0/16 | Cilium CNI</text>
+
+    <g transform="translate(15,175)">
+      <rect width="480" height="40" rx="6" fill="#fff" stroke="#e2e8f0"/>
+      <text x="15" y="15" class="svc">워크로드 (namePrefix: prod-):</text>
+      <text x="15" y="30" class="detail">6 서비스 × 3-10 replicas (HPA) + KEDA notification 1→10 + DB 3종 + RabbitMQ + PDB + LOG_LEVEL: warn</text>
+    </g>
+  </g>
+
+  <!-- Summary bar -->
+  <g transform="translate(30,660)">
+    <rect width="1040" height="42" rx="8" fill="#1e293b"/>
+    <text x="520" y="18" text-anchor="middle" font-size="11" font-weight="600" fill="#fff">전체 인프라: 10 Tart VM | 22 vCPU | 76GB RAM | 4 독립 K8s 클러스터 | Ubuntu 24.04 ARM64 | kubeadm + Cilium CNI</text>
+    <text x="520" y="35" text-anchor="middle" font-size="9" fill="#94a3b8">각 클러스터는 독립된 Pod/Service CIDR로 네트워크 격리 | Platform 클러스터에서 ArgoCD가 나머지 3개 클러스터를 원격 관리</text>
+  </g>
+</svg>

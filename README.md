@@ -1,44 +1,122 @@
-# DevOps E-Commerce Platform - MAU 10M Architecture
+# MAU 1천만 E-Commerce Platform
 
-> Apple Silicon Mac + Tart VM + Kubernetes 멀티클러스터 위에서
-> **MAU 1천만 트래픽을 소화하는 e-commerce 플랫폼**을 설계/구축/운영하는 DevOps 포트폴리오 프로젝트
-
----
-
-## 1. 프로젝트 소개
-
-### 1.1 왜 이 프로젝트를 만들었는가
-
-- 데브옵스 엔지니어로서 **대규모 서비스를 운영할 수 있음**을 증명하기 위한 포트폴리오
-- 단순히 "쿠버네티스 할 줄 압니다"가 아니라, **실제 MAU 1천만 규모의 트래픽 패턴을 시뮬레이션**하고 오토스케일링이 작동하는 것을 보여줌
-- 관련 프로젝트 3개가 하나의 스토리를 구성:
-
-| 프로젝트 | 증명하는 역량 |
-|---------|-------------|
-| [`tart-infra`](../tart-infra/) | 인프라를 **코드로 프로비저닝**할 수 있음 (Terraform + Tart VM + K8s) |
-| [`middle_ware`](../middle_ware/) | WEB/WAS 미들웨어를 **구성/운영**할 수 있음 (Nginx + Tomcat + SSO + APM) |
-| **`devops_dummpy` (이 프로젝트)** | 대규모 서비스를 **설계/배포/스케일링/모니터링**할 수 있음 |
-
-### 1.2 이 프로젝트에서 다루는 것
-
-- **멀티티어 마이크로서비스** 아키텍처 (WEB → WAS → DB)
-- **웹서버 2종**: Nginx (리버스 프록시 + 정적 서빙) + Apache HTTPD (레거시 호환)
-- **WAS 5종**: Tomcat/Spring Boot (Java) + Express (Node.js) + Go (net/http) + FastAPI (Python) + Actix-web (Rust)
-- **로드밸런서**: HAProxy (L4/L7 로드밸런싱, stick-table Rate Limiting)
-- **데이터베이스 3종**: PostgreSQL (SQL) + MongoDB (NoSQL) + Redis (Cache)
-- **메시지 큐**: RabbitMQ (이벤트 기반 비동기 처리)
-- **로그 수집**: EFK Stack (Elasticsearch + Fluentd + Kibana)
-- **탄력적 스케일링**: HPA (CPU 기반) + KEDA (큐 기반) + PDB (안정성)
-- **서비스 메시**: Istio (서킷브레이커, mTLS, 카나리 배포)
-- **GitOps CI/CD**: ArgoCD (App-of-Apps 패턴)
-- **모니터링**: Prometheus + Grafana + ServiceMonitor + SLA 알림
-- **부하 테스트**: k6 (MAU 1천만 트래픽 시뮬레이션)
+> Apple Silicon Mac 위에 Tart VM + Kubernetes 멀티클러스터를 구축하고,
+> **실제 MAU 1천만 규모의 트래픽 패턴을 시뮬레이션하여 오토스케일링이 작동하는 것을 증명**하는 프로젝트
 
 ---
 
-## 2. 아키텍처
+## 1. 프로젝트 개요
 
-### 2.1 전체 시스템 구성도
+### 1.1 무엇을 구현했는가
+
+7개 마이크로서비스로 구성된 e-commerce 플랫폼을 Kubernetes 멀티클러스터(dev/staging/prod) 위에 배포하고, MAU 1천만 규모 트래픽을 k6로 시뮬레이션하여 HPA/KEDA 기반 오토스케일링, Istio 서비스 메시, Prometheus/Grafana 모니터링, ArgoCD GitOps가 **실제로 동작**하는 것을 보여준다.
+
+### 1.2 왜 만들었는가
+
+DevOps 엔지니어로서 **대규모 서비스를 설계/배포/스케일링/모니터링할 수 있음**을 증명하기 위해 만들었다.
+
+"쿠버네티스를 사용해봤습니다" 수준이 아니라, 다음을 직접 시연할 수 있어야 한다:
+
+- **트래픽 규모 산출**: MAU → DAU → RPS → 피크 RPS로 이어지는 용량 산정
+- **환경 분리**: dev(단일 레플리카) → staging(2 레플리카, prod 유사) → prod(HA + 오토스케일링)
+- **부하 대응**: CPU 기반 HPA, 큐 기반 KEDA, PDB로 가용성 보장
+- **장애 격리**: Istio 서킷브레이커, mTLS, 재시도 정책
+- **관측성**: Prometheus 메트릭 → Grafana 대시보드 → SLA 알림 → 로그 수집(EFK)
+- **자동화**: Kustomize/Helm 배포, ArgoCD GitOps, 스크립트 원클릭 구축
+
+### 1.3 어떻게 구현했는가
+
+```
+[호스트: Apple Silicon Mac, 128GB RAM]
+    │
+    ├── Tart VM 10대 (Apple Virtualization Framework)
+    │   ├── dev 클러스터:     master + worker1 (4 vCPU / 12GB)
+    │   ├── staging 클러스터: master + worker1 (4 vCPU / 12GB)
+    │   ├── prod 클러스터:    master + worker1,2 (6 vCPU / 19GB)
+    │   └── platform 클러스터: master + worker1,2 (7 vCPU / 24GB)
+    │       → Prometheus, Grafana, ArgoCD, Jaeger
+    │
+    ├── kubeadm으로 각 클러스터 부트스트랩
+    │   └── Cilium CNI → eBPF 기반 고성능 네트워킹
+    │
+    ├── 7개 마이크로서비스 (5개 언어, 3개 DB, 1개 MQ)
+    │   └── Docker 멀티스테이지 빌드 → containerd로 직접 로드
+    │
+    ├── Kustomize base/overlay로 환경별 배포
+    │   └── prod: HPA + KEDA + PDB + topologySpread + podAntiAffinity
+    │
+    └── k6 부하 테스트 (smoke → average → peak → stress → soak)
+        └── MAU 1천만 피크: 500 VU → ~300 RPS → HPA 스케일아웃 관찰
+```
+
+---
+
+## 2. 핵심 설계 의사결정
+
+### 2.1 왜 5개 언어를 사용했는가
+
+| 서비스 | 언어/프레임워크 | 선택 이유 |
+|--------|----------------|----------|
+| order-service | Java 17 / Spring Boot 3.2 / Tomcat 10 | **엔터프라이즈 표준 WAS**. 주문은 트랜잭션 정합성이 최우선 → JPA + ACID. Scouter APM으로 Java WAS 모니터링 시연. 대부분의 국내 기업이 Tomcat 기반이므로 운영 역량 증명에 핵심 |
+| product-service | Node.js 20 / Express | **비동기 I/O 기반 고성능 읽기 서비스**. 상품 조회는 전체 트래픽의 70%를 차지하는 읽기 위주 → Redis 캐시 + MongoDB 조합이 자연스러움. prom-client로 Prometheus 메트릭 노출 |
+| cart-service | Go 1.22 / net/http | **최소 메모리, 최고 성능**. 장바구니는 단순 CRUD + Redis Hash 조작 → 프레임워크 없이 표준 라이브러리만으로 구현. 32Mi 메모리로 동작하는 초경량 서비스 |
+| user-service | Python 3.12 / FastAPI | **비동기 ASGI + 자동 API 문서**. 사용자 인증은 JWT + Session 관리가 핵심 → FastAPI의 async SQLAlchemy + Pydantic 검증이 적합. Swagger 자동 생성 |
+| review-service | Rust 1.77 / Actix-web | **메모리 안전 + 초고성능**. 리뷰는 MongoDB Aggregation Pipeline으로 평점 집계 → Rust의 소유권 모델이 동시성 안전성 보장. 가장 낮은 리소스(30m CPU, 32Mi mem)로 동작 |
+| notification-worker | Node.js 20 / amqplib | **이벤트 소비자**. RabbitMQ 큐에서 주문 이벤트를 소비하여 알림 시뮬레이션. KEDA가 큐 깊이를 감지하여 워커 스케일링 |
+
+**핵심 의도**: 실제 현업에서 마주치는 폴리글랏 마이크로서비스 환경을 재현하여, 특정 언어에 종속되지 않고 **서비스 특성에 맞는 기술을 선택할 수 있는 판단력**을 보여준다.
+
+### 2.2 왜 DB를 3개로 분리했는가
+
+| DB | 담당 서비스 | 선택 이유 |
+|----|-----------|----------|
+| PostgreSQL 16 | order-service, user-service | 주문과 사용자 데이터는 **ACID 트랜잭션이 필수**. 금액, 상태 변경, 유저 정보는 정합성이 깨지면 안 됨 |
+| MongoDB 7 | product-service, review-service | 상품 카탈로그와 리뷰는 **스키마가 유동적**. 상품 속성(색상, 사이즈, 옵션)이 카테고리마다 다르고, 리뷰도 텍스트+이미지+평점 등 비정형 |
+| Redis 7 | cart-service (주 저장소), product-service (캐시), user-service (세션) | 장바구니는 **24시간 TTL의 임시 데이터** → 인메모리가 적합. 상품 캐시는 60초 TTL로 DB 부하 경감. 세션은 JWT 검증용 |
+
+**핵심 원칙**: 서비스별 데이터 특성에 맞는 DB를 선택하는 **Polyglot Persistence** 패턴. 모든 데이터를 하나의 RDBMS에 넣는 모놀리식 접근의 한계를 극복한다.
+
+### 2.3 왜 RabbitMQ를 사용했는가
+
+**동기**: 주문 생성 시 알림 전송을 동기적으로 처리하면 주문 API 응답 지연이 발생한다.
+
+**해결**: Topic Exchange 기반 비동기 이벤트 발행.
+
+```
+order-service → [RabbitMQ Topic Exchange] → order.created 큐
+                                          → order.shipped 큐
+                                          → order.cancelled 큐
+                                                    ↓
+                                          notification-worker (소비)
+                                                    ↓
+                                          이메일/SMS/푸시 시뮬레이션
+```
+
+**KEDA 연동**: 큐에 메시지가 5개 이상 쌓이면 notification-worker Pod를 자동 스케일아웃 (최대 10개). 큐가 비면 1개로 축소. 이것이 **이벤트 드리븐 오토스케일링**의 핵심.
+
+### 2.4 왜 HAProxy를 추가했는가
+
+Nginx Ingress Controller가 이미 L7 라우팅을 담당하지만, HAProxy를 별도로 두는 이유:
+
+- **L4 로드밸런싱**: TCP 레벨에서 백엔드 헬스체크 + 가중치 기반 분산
+- **stick-table Rate Limiting**: IP별 100 req/s 제한을 커널에 가까운 레벨에서 처리
+- **Stats UI**: 실시간 트래픽 모니터링 대시보드 (포트 30884)
+- **실무 재현**: 대부분의 대규모 서비스에서 Nginx/HAProxy 이중화 구조를 사용
+
+### 2.5 왜 Tart VM을 선택했는가
+
+| 대안 | 문제점 | Tart의 장점 |
+|------|--------|------------|
+| Docker Desktop + kind/k3d | 컨테이너 내 K8s → 네트워크 제약, eBPF 불가, 멀티 클러스터 어려움 | **실제 VM** 위에 kubeadm → 프로덕션과 동일한 K8s 환경 |
+| VirtualBox/UTM | x86 에뮬레이션 오버헤드, 무거움 | Apple Virtualization Framework → **네이티브 ARM64**, 경량 |
+| Multipass | 기능 제한, Terraform 연동 불편 | Terraform Provider 존재, CLI 간결, IP 할당 안정적 |
+| 클라우드(EKS/GKE) | 비용 발생, 로컬 재현 불가 | **비용 0원**, 오프라인 가능, 인프라 전체를 직접 통제 |
+
+---
+
+## 3. 아키텍처
+
+### 3.1 전체 시스템 구성도
 
 ```
                     ┌─────────────────────────────────────────────────────────┐
@@ -57,19 +135,17 @@
   │                                                                        │ │
   │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────────────┐│ │
   │  │ DEV Cluster       │ │ STAGING Cluster  │ │ PROD Cluster             ││ │
-  │  │ master(2C/4G)     │ │ master(2C/4G)    │ │ master(2C/4G)            ││ │
-  │  │ worker1(2C/8G)    │ │ worker1(3C/10G)  │ │ worker1(3C/12G)          ││ │
-  │  │ = 4C/12G          │ │ worker2(3C/10G)  │ │ worker2(3C/12G)          ││ │
-  │  │ → 단일 레플리카    │ │ = 8C/24G         │ │ worker3(3C/12G)          ││ │
-  │  │ → Istio 활성화    │ │ → 2 레플리카     │ │ worker4(2C/8G) [데이터]  ││ │
-  │  │                   │ │ → prod 유사 설정  │ │ = 13C/48G                ││ │
-  │  │                   │ │ → 토폴로지분산    │ │ → HA+HPA+KEDA+PDB       ││ │
+  │  │ master(2C/4G)     │ │ master(2C/4G)    │ │ master(2C/3G)            ││ │
+  │  │ worker1(2C/8G)    │ │ worker1(2C/8G)   │ │ worker1(2C/8G)           ││ │
+  │  │ = 4C/12G          │ │ = 4C/12G         │ │ worker2(2C/8G)           ││ │
+  │  │ → 단일 레플리카    │ │ → 2 레플리카     │ │ = 6C/19G                 ││ │
+  │  │ → Istio 활성화    │ │                   │ │ → HA+HPA+KEDA+PDB       ││ │
   │  └──────────────────┘ └──────────────────┘ └──────────────────────────┘│ │
   └────────────────────────────────────────────────────────────────────────┘ │
                     └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 애플리케이션 아키텍처
+### 3.2 애플리케이션 아키텍처
 
 ```
 [사용자/k6 부하생성기]
@@ -78,14 +154,13 @@
 ┌───────────────────────────────────────────────────────┐
 │                    TRAFFIC LAYER                       │
 │  Nginx Ingress Controller (NodePort:30080)             │
-│  - Rate Limiting: 100 req/s per IP                     │
-│  - 경로 기반 라우팅                                     │
+│  → 경로 기반 라우팅 (/api/orders, /api/products, ...) │
 └───────┬───────────────┬───────────────┬───────────────┘
         │               │               │
    ┌────▼────┐    ┌─────▼─────┐   ┌─────▼─────┐
-   │ Nginx   │    │ Apache    │   │ Nginx     │
-   │ (정적+  │    │ HTTPD     │   │ (어드민)  │
-   │ 프록시) │    │ (레거시)  │   │           │
+   │ Nginx   │    │ Apache    │   │ HAProxy   │
+   │ 정적+   │    │ HTTPD     │   │ L4/L7 LB  │
+   │ 프록시  │    │ 레거시    │   │ Rate Limit│
    └────┬────┘    └─────┬─────┘   └─────┬─────┘
         │               │               │
 ┌───────▼───────────────▼───────────────▼───────────────┐
@@ -93,616 +168,212 @@
 │                                                        │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌──────────┐ │
 │  │ order-service   │ │ product-service │ │cart-svc  │ │
-│  │ ─────────────── │ │ ─────────────── │ │────────  │ │
-│  │ Tomcat          │ │ Node.js 20      │ │Go 1.22   │ │
-│  │ Spring Boot 3.x │ │ Express         │ │net/http  │ │
-│  │ Java 17         │ │                 │ │          │ │
+│  │ Java 17         │ │ Node.js 20      │ │Go 1.22   │ │
+│  │ Spring Boot 3.2 │ │ Express         │ │net/http  │ │
+│  │ Tomcat 10       │ │                 │ │          │ │
 │  │ → POST/GET      │ │ → GET/POST      │ │→ CRUD   │ │
 │  │   /api/orders   │ │   /api/products │ │ /api/cart│ │
-│  │ → Actuator      │ │ → /metrics      │ │→/metrics│ │
-│  │   /prometheus   │ │   (prom-client) │ │(promhttp)│ │
 │  └────────┬────────┘ └────────┬────────┘ └─────┬────┘ │
 │           │                   │                 │      │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌──────────┐ │
 │  │ user-service    │ │ review-service  │ │notify-   │ │
-│  │ ─────────────── │ │ ─────────────── │ │worker    │ │
-│  │ Python 3.12     │ │ Rust 1.77       │ │Node.js   │ │
-│  │ FastAPI         │ │ Actix-web       │ │RabbitMQ  │ │
-│  │ → /api/users    │ │ → /api/reviews  │ │Consumer  │ │
-│  └─────────────────┘ └─────────────────┘ └──────────┘ │
-└────────┬──────────────────────┬─────────────────┘──────┘
+│  │ Python 3.12     │ │ Rust 1.77       │ │worker    │ │
+│  │ FastAPI         │ │ Actix-web       │ │Node.js   │ │
+│  │ → /api/users    │ │ → /api/reviews  │ │RabbitMQ  │ │
+│  └─────────────────┘ └─────────────────┘ │Consumer  │ │
+│                                          └──────────┘ │
+└────────┬──────────────────────┬─────────────────┘─────┘
          │                      │                 │
 ┌────────▼──────────────────────┴─────────────────▼──────┐
 │                    MESSAGE QUEUE                        │
-│              RabbitMQ 3 (Management)                    │
-│              Queue: order.created                       │
-│              Exchange: order.exchange (topic)           │
+│              RabbitMQ 3 (Topic Exchange)                │
+│              Queue: order.created / shipped / cancelled │
 └────────────────────────────────────────────────────────┘
          │                      │                 │
 ┌────────▼──────┐  ┌────────────▼──┐  ┌───────────▼─────┐
 │ PostgreSQL 16 │  │ MongoDB 7     │  │ Redis 7         │
 │ (StatefulSet) │  │ (StatefulSet) │  │ (Deployment)    │
-│               │  │               │  │                 │
-│ DB: orders    │  │ DB: products  │  │ Cache: 상품     │
-│ 테이블: 주문,  │  │ Collection:   │  │ Session: 장바구니│
-│ 유저 정보     │  │ 상품, 리뷰    │  │ Rate Limit      │
-│ PVC: 5Gi      │  │ PVC: 5Gi      │  │ maxmem: 200MB   │
+│ 주문, 유저    │  │ 상품, 리뷰    │  │ 캐시, 세션,     │
+│ ACID 트랜잭션 │  │ 스키마리스    │  │ 장바구니        │
 └───────────────┘  └───────────────┘  └─────────────────┘
 ```
 
-### 2.3 서비스 간 통신 흐름
+### 3.3 서비스 간 통신 흐름
+
+**주문 생성 플로우 (동기 + 비동기 혼합)**:
 
 ```
-[사용자가 주문 생성]
-     │
-     ▼
-  POST /api/orders
-     │
-     ▼
-  order-service (Tomcat/Spring Boot)
-     │
-     ├── 1. PostgreSQL에 주문 저장 (JPA)
-     │
-     ├── 2. RabbitMQ에 "order.created" 이벤트 발행
-     │       │
-     │       ▼
-     │   notification-worker (Node.js)
-     │       └── 알림 전송 시뮬레이션 (이메일/SMS)
-     │
-     └── 3. HTTP 201 응답 반환
+1. POST /api/orders → order-service
+2. order-service → PostgreSQL INSERT (JPA, 트랜잭션)
+3. order-service → RabbitMQ PUBLISH "order.created" (비동기)
+4. order-service → HTTP 201 응답 (여기서 사용자 응답 완료)
+5. notification-worker ← RabbitMQ CONSUME (백그라운드)
+6. notification-worker → 이메일/SMS/푸시 시뮬레이션
+```
 
-[사용자가 상품 조회]
-     │
-     ▼
-  GET /api/products
-     │
-     ▼
-  product-service (Node.js/Express)
-     │
-     ├── 1. Redis 캐시 확인 (HIT → 바로 응답)
-     │
-     └── 2. 캐시 MISS → MongoDB 조회 → Redis 캐시 저장 (TTL 60s) → 응답
+**상품 조회 플로우 (캐시 전략)**:
+
+```
+1. GET /api/products → product-service
+2. Redis 캐시 확인 (HIT → 바로 응답, ~1ms)
+3. 캐시 MISS → MongoDB 조회 (~5ms)
+4. Redis에 결과 저장 (TTL 60초)
+5. 응답 반환
 ```
 
 ---
 
-## 3. 호스트 리소스 및 VM 리소스 배분
+## 4. 각 계층별 동작 원리
 
-### 3.1 호스트 머신 사양
+### 4.1 오토스케일링 메커니즘
 
-| 항목 | 사양 |
-|------|------|
-| CPU | Apple Silicon (16 cores) |
-| RAM | 128 GB |
-| Disk | 1.8 TB (여유: ~835 GB) |
-| OS | macOS (Darwin 24.6.0) |
-| 가상화 | Tart (Apple Virtualization Framework) |
+**HPA (Horizontal Pod Autoscaler)가 Pod를 늘리는 원리**:
 
-### 3.2 VM 리소스 배분 상세
-
-총 **13개 VM**, vCPU 합계 **32 cores**, RAM 합계 **108 GB**
-
-> 호스트 16코어에 vCPU 32개를 할당하므로 약 2:1 오버커밋.
-> Tart는 Apple Virtualization Framework 기반이라 경량이고,
-> 모든 VM을 동시에 100% 사용하는 경우는 드물기 때문에 실용적으로 문제없음.
-> RAM은 128GB 중 108GB 사용. 전체 클러스터 동시 기동 시 호스트 여유 ~20GB.
-> 리소스 절약이 필요하면 dev/staging 중 하나를 중지하고 운영 가능.
-
-| 클러스터 | VM 이름 | Role | vCPU | RAM | Disk | 용도 |
-|---------|---------|------|------|-----|------|------|
-| **platform** | platform-master | master | 2 | 4 GB | 20 GB | K8s control plane |
-| | platform-worker1 | worker | 3 | 12 GB | 20 GB | Prometheus, Grafana, ArgoCD |
-| | platform-worker2 | worker | 2 | 8 GB | 20 GB | Jaeger, Loki, Scouter |
-| **dev** | dev-master | master | 2 | 4 GB | 20 GB | K8s control plane |
-| | dev-worker1 | worker | 2 | 8 GB | 20 GB | 앱 전체 (단일 레플리카) |
-| **staging** | staging-master | master | 2 | 4 GB | 20 GB | K8s control plane |
-| | staging-worker1 | worker | 3 | 10 GB | 20 GB | 앱 서비스 (2 레플리카) |
-| | staging-worker2 | worker | 3 | 10 GB | 20 GB | 앱 서비스 (2 레플리카, 스프레드) |
-| **prod** | prod-master | master | 2 | 4 GB | 20 GB | K8s control plane |
-| | prod-worker1 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, HPA) |
-| | prod-worker2 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, HPA) |
-| | prod-worker3 | worker | 3 | 12 GB | 20 GB | 앱 서비스 (HA, 스케일아웃 버퍼) |
-| | prod-worker4 | worker | 2 | 8 GB | 20 GB | 데이터 티어 (DB, MQ, Cache) |
-| **합계** | | | **32** | **108 GB** | **260 GB** | |
-
-### 3.3 리소스 운영 가이드
+HPA는 metrics-server가 수집한 Pod의 CPU/Memory 사용률을 주기적으로(기본 15초) 확인한다. 현재 사용률이 목표값(예: CPU 50%)을 초과하면, `필요 레플리카 = ceil(현재 레플리카 × 현재 사용률 / 목표 사용률)` 공식으로 필요한 Pod 수를 계산하고 Deployment의 replicas를 조정한다.
 
 ```
-VM 전체 동시 기동 시:
-  ├── 호스트 RAM 사용: 108GB / 128GB (84%) → 운영 가능 (호스트 OS ~16GB 여유)
-  ├── 호스트 CPU 사용: 32 vCPU / 16 cores (오버커밋 2x) → 허용 범위
-  └── 호스트 Disk 사용: 260GB / 835GB 여유 (31%) → 충분
+order-service 예시:
+  현재: 3 Pod, CPU 사용률 80%
+  목표: CPU 50%
+  계산: ceil(3 × 80/50) = ceil(4.8) = 5
+  결과: 3 → 5 Pod로 스케일아웃
 
-권장 운영 모드:
-  ├── 풀 프로덕션: platform + prod (7C+11C = 18C/60G) → 실제 운영 시뮬레이션
-  ├── 개발 + 운영: platform + dev + prod (18C+4C = 22C/72G)
-  ├── 전체 파이프라인: 전체 13VM 기동 (32C/108G) → 부하 테스트 시
-  └── 최소 기동: dev만 (4C/12G) → 앱 개발/디버깅
+스케일링 정책:
+  Scale Up:  30초 안정화 → 60초마다 최대 3 Pod 또는 50% 증가 (큰 쪽 적용)
+  Scale Down: 300초 안정화 → 120초마다 1 Pod 감소 (급격한 축소 방지)
 ```
 
-### 3.4 Pod 리소스 버짓 (서비스당)
+**KEDA (Kubernetes Event-Driven Autoscaling)가 워커를 늘리는 원리**:
 
-| 서비스 | CPU req/limit | Memory req/limit | prod 레플리카 |
-|--------|--------------|-----------------|--------------|
-| nginx-static | 50m / 200m | 64Mi / 128Mi | 2-6 (HPA) |
-| apache-legacy | 50m / 200m | 64Mi / 128Mi | 1 |
-| order-service (Tomcat) | 100m / 500m | 256Mi / 512Mi | 3-10 (HPA) |
-| product-service (Node.js) | 100m / 400m | 128Mi / 256Mi | 3-10 (HPA) |
-| cart-service (Go) | 50m / 300m | 64Mi / 128Mi | 3-8 (HPA) |
-| user-service (FastAPI) | 50m / 300m | 128Mi / 256Mi | 3-8 (HPA) |
-| review-service (Rust) | 30m / 200m | 32Mi / 64Mi | 2-6 (HPA) |
-| notification-worker | 50m / 200m | 128Mi / 256Mi | 1-10 (KEDA) |
-| haproxy | 50m / 200m | 64Mi / 128Mi | 1 |
-| elasticsearch | 200m / 1000m | 512Mi / 1Gi | 1 |
-| fluentd (DaemonSet) | 50m / 200m | 128Mi / 256Mi | 노드당 1 |
-| kibana | 100m / 500m | 256Mi / 512Mi | 1 |
-| postgresql | 100m / 500m | 256Mi / 512Mi | 1 |
-| mongodb | 100m / 500m | 256Mi / 512Mi | 1 |
-| redis | 50m / 200m | 64Mi / 256Mi | 1 |
-| rabbitmq | 100m / 300m | 256Mi / 512Mi | 1 |
-| **합계 (단일 레플리카)** | **~1.3** | **~2.5 GB** | |
-
-> prod 기준: WAS 5종 × 3 레플리카 = 15 pods + WEB 2 + Worker 1 + 데이터 4 = 22 pods (평시).
-> HPA 풀 스케일아웃 시 최대 ~55 pods. 4개 워커 노드 (11C/44G)에 분산.
-> topologySpreadConstraints + podAntiAffinity로 노드 간 균등 분배.
-
----
-
-## 4. 기술 스택 상세
-
-| 계층 | 기술 | 버전 | 선택 이유 |
-|------|------|------|----------|
-| **WEB** | Nginx | 1.24+ | 고성능 리버스 프록시, 정적 파일 서빙, rate limiting |
-| **WEB** | Apache HTTPD | 2.4 | 레거시 시스템 호환성 데모 (mod_proxy, balancer) |
-| **WAS** | Tomcat (Spring Boot) | 10.x (3.2.x) | 엔터프라이즈 표준 Java WAS, JPA + Actuator 메트릭 |
-| **WAS** | Node.js (Express) | 20 LTS | 비동기 I/O 기반 고성능 API, Mongoose ODM |
-| **WAS** | Go (net/http) | 1.22 | 초경량 바이너리, 최소 메모리, 고성능 카트 서비스 |
-| **WAS** | FastAPI (Uvicorn) | Python 3.12 | 비동기 ASGI, 자동 API 문서(Swagger), 유저 서비스 |
-| **WAS** | Actix-web | Rust 1.77 | 초고성능 HTTP 프레임워크, 메모리 안전, 리뷰 서비스 |
-| **LB** | HAProxy | 2.9 | L4/L7 로드밸런싱, stick-table Rate Limiting, Stats UI |
-| **SQL** | PostgreSQL | 16 | ACID 트랜잭션, 주문/유저 데이터 정합성 보장 |
-| **NoSQL** | MongoDB | 7 | 스키마리스 문서형, 상품 카탈로그/리뷰 유연 저장 |
-| **Cache** | Redis | 7 | 인메모리 캐시 (상품), 세션 스토어 (장바구니) |
-| **MQ** | RabbitMQ | 3 | AMQP 메시지 큐, KEDA 연동, Management UI |
-| **Logging** | EFK Stack | ES 8.12 | Elasticsearch + Fluentd + Kibana, 중앙 로그 수집 |
-| **Container** | Docker | - | ARM64 멀티스테이지 빌드 |
-| **Orchestration** | Kubernetes | kubeadm | 멀티클러스터 (dev/staging/prod) |
-| **VM** | Tart | latest | Apple Silicon 네이티브, 경량 VM |
-| **IaC** | Terraform | - | VM + K8s 프로비저닝 자동화 |
-| **K8s 배포** | Kustomize | - | 환경별 오버레이 (base + dev/staging/prod) |
-| **K8s 배포** | Helm | - | 파라미터화된 차트 패키징 |
-| **CI/CD** | ArgoCD | - | GitOps, App-of-Apps 패턴, 자동 Sync |
-| **Service Mesh** | Istio | - | mTLS, 서킷브레이커, 카나리, 트래픽 관리 |
-| **Monitoring** | Prometheus | - | 메트릭 수집, ServiceMonitor CRD |
-| **Visualization** | Grafana | - | 대시보드 (e-commerce 개요, 오토스케일링) |
-| **Alerting** | PrometheusRule | - | SLA 위반 알림 (P99 > 1s, 에러율 > 1%) |
-| **Autoscale** | HPA | v2 | CPU/메모리 기반 수평 스케일링 |
-| **Autoscale** | KEDA | - | RabbitMQ 큐 깊이 기반 이벤트 드리븐 스케일링 |
-| **Load Test** | k6 | - | MAU 1천만 트래픽 패턴 시뮬레이션 |
-
----
-
-## 5. 디렉토리 구조
+KEDA는 HPA와 다르게 **외부 이벤트 소스**(RabbitMQ 큐 깊이)를 메트릭으로 사용한다. KEDA Operator가 RabbitMQ에 주기적으로(10초) 큐 길이를 질의하고, 메시지가 5개 이상이면 ScaledObject에 정의된 대로 Pod를 증가시킨다. 큐가 비면 `minReplicaCount: 1`까지 축소한다.
 
 ```
-devops_dummpy/
+notification-worker:
+  트리거: order.created 큐 > 5 messages
+  범위: 1 → 10 Pod
+  Scale Up: 즉시 (stabilization 0초), 30초마다 최대 3 Pod 추가
+  Scale Down: 120초 안정화 후, 60초마다 1 Pod 감소
+```
+
+**PDB (Pod Disruption Budget)의 역할**:
+
+노드 드레인이나 클러스터 업그레이드 시 동시에 내려가는 Pod 수를 제한한다. `minAvailable: 2`로 설정하면, 최소 2개 Pod가 항상 Running 상태를 유지해야 하므로 롤링 업데이트/노드 점검 시에도 서비스 중단이 없다.
+
+### 4.2 Istio 서비스 메시 동작 원리
+
+**서킷브레이커가 장애를 격리하는 원리**:
+
+Istio의 Envoy 사이드카 프록시가 각 Pod에 주입되어 모든 트래픽을 가로챈다. DestinationRule의 `outlierDetection` 설정에 따라:
+
+```yaml
+outlierDetection:
+  consecutive5xxErrors: 3    # 연속 5xx 3회 발생 시
+  interval: 10s              # 10초 간격으로 검사
+  baseEjectionTime: 30s      # 해당 엔드포인트를 30초간 트래픽 풀에서 제거
+  maxEjectionPercent: 50     # 전체 엔드포인트의 최대 50%만 제거 (전체 장애 방지)
+```
+
+**mTLS의 동작 원리**:
+
+Istio의 Citadel(istiod)이 각 Pod에 X.509 인증서를 자동 발급한다. `PeerAuthentication: STRICT` 모드에서는 모든 Pod-to-Pod 통신이 TLS로 암호화된다. 인증서 교체(rotation)도 자동으로 수행되므로 애플리케이션 코드 변경 없이 제로 트러스트 네트워크를 구현한다.
+
+**VirtualService 재시도 정책**:
+
+```
+order-service: 타임아웃 10s, 3회 재시도, 5xx/reset/connect-failure 시
+product-service: 타임아웃 5s, 2회 재시도, 5xx/connect-failure 시
+cart-service: 타임아웃 3s, 2회 재시도, 5xx/connect-failure 시
+```
+
+### 4.3 Kustomize base/overlay 패턴
+
+**왜 Kustomize를 사용했는가**: Helm은 템플릿 엔진이라 values.yaml이 복잡해지면 가독성이 떨어진다. Kustomize는 원본 YAML을 그대로 유지하면서 환경별로 **패치만 적용**하는 방식이라 변경점이 명확하다.
+
+```
+manifests/
+├── base/              ← 모든 환경에 공통인 "원본" (replicas: 1, 최소 리소스)
+│   ├── namespace.yaml
+│   ├── web-tier/      ← Nginx, Apache
+│   ├── was-tier/      ← 5개 서비스 + 1개 워커
+│   ├── data-tier/     ← PostgreSQL, MongoDB, Redis
+│   ├── messaging/     ← RabbitMQ
+│   ├── loadbalancer/  ← HAProxy
+│   ├── logging/       ← EFK Stack
+│   └── monitoring/    ← Scouter APM
 │
-├── README.md                              # 이 파일 (프로젝트 전체 가이드)
-├── .gitignore
+├── overlays/
+│   ├── dev/           ← namePrefix: dev-, replicas: 1, LOG_LEVEL: debug
+│   ├── staging/       ← namePrefix: staging-, replicas: 2, LOG_LEVEL: info
+│   └── prod/          ← namePrefix: prod-, replicas: 3, LOG_LEVEL: warn
+│                         + HPA, PDB, KEDA, topologySpread, podAntiAffinity
 │
-├── apps/                                  # ── 마이크로서비스 소스코드 ──
-│   │
-│   ├── order-service/                     # [WAS] Java Spring Boot + Tomcat
-│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (maven → temurin-jre)
-│   │   ├── pom.xml                        #   Spring Boot 3.2.x, JPA, AMQP, Actuator
-│   │   └── src/main/
-│   │       ├── java/com/devops/order/
-│   │       │   ├── OrderApplication.java  #   메인 클래스
-│   │       │   ├── controller/            #   REST API (POST/GET /api/orders)
-│   │       │   ├── service/               #   비즈니스 로직 + RabbitMQ 발행
-│   │       │   ├── repository/            #   JPA Repository
-│   │       │   ├── model/                 #   Order JPA Entity (UUID, status enum)
-│   │       │   └── config/                #   RabbitMQ 설정 (Exchange, Queue, Binding)
-│   │       └── resources/
-│   │           └── application.properties #   DB/MQ/Actuator 설정
-│   │
-│   ├── product-service/                   # [WAS] Node.js Express
-│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (node:20-alpine)
-│   │   ├── package.json                   #   express, mongoose, ioredis, prom-client
-│   │   └── src/
-│   │       ├── index.js                   #   Express 서버, MongoDB/Redis 연결
-│   │       ├── routes/products.js         #   CRUD API + Redis 캐시
-│   │       ├── models/Product.js          #   Mongoose 스키마 (상품, 리뷰)
-│   │       └── middleware/cache.js        #   Redis 캐시 미들웨어 (TTL 60s)
-│   │
-│   ├── cart-service/                      # [WAS] Go net/http
-│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (golang → alpine)
-│   │   ├── go.mod / go.sum               #   go-redis, prometheus client
-│   │   └── main.go                        #   Redis Hash 기반 장바구니 CRUD
-│   │
-│   ├── user-service/                      # [WAS] Python FastAPI + Uvicorn
-│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (python:3.12-slim)
-│   │   ├── requirements.txt               #   fastapi, uvicorn, asyncpg, redis
-│   │   ├── main.py                        #   FastAPI 앱, 라우터 등록
-│   │   ├── models.py                      #   SQLAlchemy 비동기 모델 (User)
-│   │   └── database.py                    #   AsyncSession, DB 연결
-│   │
-│   ├── review-service/                    # [WAS] Rust Actix-web
-│   │   ├── Dockerfile                     #   멀티스테이지 빌드 (rust → debian-slim)
-│   │   ├── Cargo.toml                     #   actix-web, mongodb, serde
-│   │   └── src/main.rs                    #   REST API + MongoDB 연결
-│   │
-│   ├── notification-worker/               # [Worker] Node.js RabbitMQ Consumer
-│   │   ├── Dockerfile
-│   │   ├── package.json                   #   amqplib, prom-client
-│   │   └── src/worker.js                 #   큐 소비 + 알림 시뮬레이션
-│   │
-│   └── frontend/                          # [WEB] Nginx Static Site
-│       ├── Dockerfile                     #   nginx:alpine 기반
-│       ├── nginx.conf                     #   리버스 프록시 설정
-│       └── public/
-│           └── index.html                 #   E-Commerce 랜딩 페이지
-│
-├── manifests/                             # ── Kubernetes 매니페스트 ──
-│   │
-│   ├── base/                              # Kustomize 베이스 (공통)
-│   │   ├── kustomization.yaml             #   전체 리소스 목록
-│   │   ├── namespace.yaml                 #   ecommerce 네임스페이스
-│   │   ├── web-tier/
-│   │   │   ├── nginx-configmap.yaml       #   Nginx 설정 (upstream, rate limit)
-│   │   │   ├── nginx-static.yaml          #   Nginx Deployment + NodePort Service
-│   │   │   └── apache-legacy.yaml         #   Apache HTTPD + mod_proxy 설정
-│   │   ├── was-tier/
-│   │   │   ├── order-service.yaml         #   Deployment + Service (Tomcat, 8080)
-│   │   │   ├── product-service.yaml       #   Deployment + Service (Node.js, 3000)
-│   │   │   ├── cart-service.yaml          #   Deployment + Service (Go, 8081)
-│   │   │   ├── user-service.yaml          #   Deployment + Service (FastAPI, 8000)
-│   │   │   ├── review-service.yaml        #   Deployment + Service (Actix-web, 8082)
-│   │   │   └── notification-worker.yaml   #   Deployment (Service 없음, consumer)
-│   │   ├── data-tier/
-│   │   │   ├── postgresql.yaml            #   StatefulSet + PVC + Headless Service
-│   │   │   ├── mongodb.yaml               #   StatefulSet + PVC + Headless Service
-│   │   │   ├── redis.yaml                 #   Deployment + Service (캐시, 비영속)
-│   │   │   └── secrets.yaml               #   DB/MQ 자격증명
-│   │   ├── messaging/
-│   │   │   └── rabbitmq.yaml              #   StatefulSet + Management UI
-│   │   ├── loadbalancer/
-│   │   │   └── haproxy.yaml               #   HAProxy L4/L7 LB + Stats + Rate Limit
-│   │   ├── logging/
-│   │   │   └── efk-stack.yaml             #   Elasticsearch + Fluentd + Kibana
-│   │   └── ingress/
-│   │       └── ingress-routes.yaml        #   경로 기반 Ingress 라우팅
-│   │
-│   ├── overlays/                          # 환경별 Kustomize 오버레이
-│   │   ├── dev/
-│   │   │   ├── kustomization.yaml         #   namePrefix: dev-
-│   │   │   ├── resource-patches.yaml      #   replicas: 1
-│   │   │   └── dev-config.yaml            #   LOG_LEVEL: debug
-│   │   ├── staging/
-│   │   │   ├── kustomization.yaml         #   namePrefix: staging-
-│   │   │   ├── resource-patches.yaml      #   replicas: 2
-│   │   │   └── staging-config.yaml        #   LOG_LEVEL: info
-│   │   └── prod/
-│   │       ├── kustomization.yaml         #   namePrefix: prod-
-│   │       ├── resource-patches.yaml      #   replicas: 3, topologySpread, podAntiAffinity
-│   │       ├── hpa.yaml                   #   HPA 6개 (WAS 5 + nginx, max 6~10)
-│   │       ├── pdb.yaml                   #   PDB 8개 (critical: minAvailable 2)
-│   │       ├── keda-scalers.yaml          #   KEDA ScaledObject (notification-worker)
-│   │       └── prod-config.yaml           #   LOG_LEVEL: warn
-│   │
-│   └── istio/                             # Istio 서비스 메시
-│       ├── destination-rules.yaml         #   서킷브레이커 (outlierDetection)
-│       ├── virtual-services.yaml          #   재시도, 타임아웃, 카나리
-│       └── peer-authentication.yaml       #   mTLS STRICT 모드
-│
-├── helm/                                  # ── Helm 차트 ──
-│   └── devops-ecommerce/
-│       ├── Chart.yaml
-│       ├── values.yaml                    #   기본값
-│       ├── values-dev.yaml                #   dev 오버라이드
-│       ├── values-staging.yaml            #   staging 오버라이드
-│       ├── values-prod.yaml               #   prod 오버라이드 (HPA+KEDA 활성화)
-│       └── templates/
-│           ├── _helpers.tpl
-│           ├── namespace.yaml
-│           ├── was-tier.yaml              #   4개 WAS 서비스 템플릿
-│           ├── hpa.yaml                   #   조건부 HPA
-│           └── NOTES.txt                  #   설치 후 안내 메시지
-│
-├── argocd/                                # ── GitOps CI/CD ──
-│   ├── app-of-apps.yaml                   #   루트 Application
-│   ├── dev-app.yaml                       #   dev → auto-sync
-│   ├── staging-app.yaml                   #   staging → manual sync
-│   └── prod-app.yaml                      #   prod → manual sync
-│
-├── loadtest/                              # ── 부하 테스트 ──
-│   └── k6/
-│       ├── lib/
-│       │   ├── endpoints.js               #   API 엔드포인트 정의
-│       │   └── helpers.js                 #   공통 유틸 (SLA 임계값, 커스텀 메트릭)
-│       └── scenarios/
-│           ├── smoke.js                   #   10 VU, 1분 (기본 검증)
-│           ├── average-load.js            #   200 VU, 10분 (~200 RPS)
-│           ├── peak-load.js               #   500 VU, 15분 (~300 RPS, MAU 1천만 피크)
-│           ├── stress-test.js             #   2000 VU, 20분 (한계점 탐색)
-│           └── soak-test.js               #   200 VU, 2시간 (메모리 누수 탐지)
-│
-├── monitoring/                            # ── 모니터링 ──
-│   ├── service-monitors/
-│   │   ├── order-service-monitor.yaml     #   /actuator/prometheus 스크래핑
-│   │   ├── product-service-monitor.yaml   #   /metrics 스크래핑
-│   │   ├── cart-service-monitor.yaml      #   /metrics 스크래핑
-│   │   ├── user-service-monitor.yaml      #   /metrics 스크래핑
-│   │   ├── review-service-monitor.yaml    #   /metrics 스크래핑
-│   │   ├── nginx-static-monitor.yaml      #   /stub_status 스크래핑
-│   │   └── notification-worker-monitor.yaml #  /metrics 스크래핑
-│   ├── prometheus-rules/
-│   │   └── sla-rules.yaml                #   P99>1s, 에러율>1%, Pod 재시작 알림
-│   └── grafana-dashboards/
-│       ├── ecommerce-overview.json        #   RPS, 에러율, 레이턴시, 큐 깊이
-│       └── autoscaling-dashboard.json     #   HPA 레플리카, CPU%, KEDA 이벤트
-│
-├── scripts/                               # ── 자동화 스크립트 ──
-│   ├── lib/
-│   │   └── common.sh                     #   공통 함수 (kubectl_cmd, ssh_exec, 로깅)
-│   ├── build-images.sh                    #   7개 앱 Docker 이미지 빌드 (ARM64)
-│   ├── deploy.sh <cluster>               #   특정 클러스터에 Kustomize 배포
-│   ├── deploy-all.sh                      #   전체 클러스터 배포
-│   ├── verify.sh [cluster|all]           #   서비스 헬스체크 + 엔드포인트 검증
-│   ├── run-loadtest.sh <scenario> [cluster] # k6 부하테스트 실행
-│   ├── install-keda.sh [cluster]         #   KEDA 오퍼레이터 설치
-│   ├── install-nginx-ingress.sh [cluster] #   Nginx Ingress Controller 설치
-│   └── demo.sh [cluster]                 #   풀 데모 (빌드→배포→검증→테스트)
-│
-└── docs/                                  # ── 문서 ──
-    ├── architecture.md                    #   전체 시스템 아키텍처 상세
-    ├── traffic-simulation.md              #   MAU 1천만 트래픽 산출 근거, k6 시나리오 설계
-    ├── resource-budget.md                 #   VM/Pod 리소스 버짓 계획서
-    ├── hands-on-lab.md                    #   13개 Lab 실습 가이드
-    ├── traffic-handling.md                #   멀티레벨 캐시, Rate Limit, 백프레셔
-    ├── troubleshooting.md                 #   ARM64, 베어메탈 K8s, Tart VM 이슈
-    └── review/                            #   ── 단계별 재연 가이드 (10편) ──
-        ├── 00-overview.md                 #   개요, 선행 조건, 프로젝트 구조
-        ├── 01-vm-cluster-setup.md         #   Tart VM + kubeadm K8s 클러스터
-        ├── 02-container-image-build.md    #   멀티스테이지 Docker 이미지 빌드
-        ├── 03-kustomize-deploy.md         #   Kustomize base/overlay 배포
-        ├── 04-service-architecture.md     #   서비스 내부 구조, 통신 흐름
-        ├── 05-autoscaling.md              #   HPA, KEDA, PDB 동작 원리
-        ├── 06-monitoring-observability.md #   Prometheus, Grafana, EFK, Scouter
-        ├── 07-service-mesh-istio.md       #   mTLS, 서킷브레이커, VirtualService
-        ├── 08-gitops-argocd.md            #   App-of-Apps, Sync Policy
-        └── 09-loadtest-analysis.md        #   k6 부하 테스트, 결과 분석
+└── istio/             ← VirtualService, DestinationRule, PeerAuthentication
 ```
 
----
-
-## 6. 사전 준비 (Prerequisites)
-
-### 6.1 호스트 머신 요구사항
-
-- **Apple Silicon Mac** (M1/M2/M3/M4)
-- RAM: 64GB 이상 권장 (128GB 최적)
-- 디스크 여유: 300GB 이상
-
-### 6.2 필요 소프트웨어
+**배포 명령**:
 
 ```bash
-# Tart (VM 가상화)
-brew install cirruslabs/cli/tart
+# dev 환경 배포
+kubectl apply -k manifests/overlays/dev/
 
-# Kubernetes 도구
-brew install kubectl helm kustomize
-
-# Docker (이미지 빌드)
-brew install docker
-
-# 부하 테스트
-brew install k6
-
-# (선택) Terraform - tart-infra에서 사용
-brew install terraform
-
-# (선택) sshpass - VM SSH 자동화
-brew install esolitos/ipa/sshpass
-
-# 설치 확인
-tart --version && kubectl version --client && helm version && k6 version
+# prod 환경 배포 (HPA + KEDA + PDB 포함)
+kubectl apply -k manifests/overlays/prod/
 ```
 
-### 6.3 사전 인프라 구축 (tart-infra 필요)
+### 4.4 ArgoCD App-of-Apps 패턴
 
-> 이 프로젝트는 [`tart-infra`](../tart-infra/) 프로젝트로 구축한 K8s 클러스터 위에서 동작합니다.
-> tart-infra가 제공하는 것: Tart VM 13개, kubeadm K8s 4개 클러스터, Cilium CNI, Prometheus, Grafana, ArgoCD, Istio
+**왜 App-of-Apps인가**: 3개 환경(dev/staging/prod)을 개별 ArgoCD Application으로 등록하면 관리가 번거롭다. App-of-Apps 패턴은 **루트 Application 하나가 하위 Application들을 자동 생성/관리**한다.
 
-```bash
-# tart-infra 클러스터가 정상인지 확인
-cd ../tart-infra
-tart list                              # 13개 VM 확인
-kubectl --kubeconfig=kubeconfig/dev.yaml get nodes    # dev 클러스터 확인
-kubectl --kubeconfig=kubeconfig/prod.yaml get nodes   # prod 클러스터 확인
+```
+app-of-apps.yaml (루트)
+    │
+    ├── dev-app.yaml      → manifests/overlays/dev/    (syncPolicy: automated)
+    ├── staging-app.yaml  → manifests/overlays/staging/ (syncPolicy: manual)
+    └── prod-app.yaml     → manifests/overlays/prod/    (syncPolicy: manual)
 ```
 
----
+dev는 Git push 시 자동 배포, staging/prod는 수동 승인 후 배포.
 
-## 7. 재현 가이드 (Step-by-Step)
+### 4.5 모니터링 파이프라인
 
-### Step 1: 프로젝트 클론 및 확인
+**메트릭 수집 흐름**:
 
-```bash
-cd ~/sideproject
-git clone <this-repo-url> devops_dummpy
-cd devops_dummpy
-
-# 디렉토리 구조 확인
-find . -type f | grep -v '.git/' | wc -l  # 약 94개 파일
+```
+애플리케이션 → /metrics 엔드포인트 노출
+    │           (prom-client, micrometer, promhttp)
+    ▼
+ServiceMonitor CRD → Prometheus에 스크래핑 대상 등록
+    │                  (15초 간격)
+    ▼
+Prometheus → 메트릭 저장 (TSDB)
+    │
+    ├── Grafana → 대시보드 시각화
+    │   ├── ecommerce-overview: RPS, 에러율, 레이턴시 P95/P99, 큐 깊이
+    │   └── autoscaling-dashboard: HPA 레플리카 수, CPU/메모리, KEDA 이벤트
+    │
+    └── PrometheusRule → 알림
+        ├── OrderServiceHighLatency: P99 > 1s (5분 지속) → warning
+        ├── HighErrorRate: 에러율 > 1% (5분 지속) → critical
+        ├── PodRestartLoop: 1시간 내 3회 이상 재시작 → warning
+        ├── HPAMaxedOut: 최대 레플리카 5분 이상 유지 → warning
+        └── RabbitMQQueueBacklog: 큐 100개 초과 (5분 지속) → warning
 ```
 
-### Step 2: Docker 이미지 빌드
+**로그 수집 흐름 (EFK Stack)**:
 
-```bash
-# 7개 앱 이미지를 ARM64로 빌드 (약 10-15분)
-./scripts/build-images.sh
-
-# 빌드 결과 확인
-docker images | grep -E "order-service|product-service|cart-service|user-service|review-service|notification-worker|frontend"
+```
+각 Pod stdout/stderr → Fluentd DaemonSet (노드당 1개)
+    │                     td-agent가 컨테이너 로그 수집
+    ▼
+Elasticsearch → 인덱싱 및 저장
+    │
+    ▼
+Kibana → 로그 검색, 필터링, 시각화 (포트 31601)
 ```
 
-> **트러블슈팅**: `docker build` 실패 시 Docker Desktop이 실행 중인지 확인.
-> Spring Boot 빌드는 Maven 의존성 다운로드로 인해 첫 빌드에 시간이 걸림.
+### 4.6 부하 테스트 설계
 
-### Step 3: K8s 클러스터에 이미지 로드
-
-Tart VM 내부의 containerd에 이미지를 로드해야 합니다:
-
-```bash
-# 방법 1: docker save + ssh load (가장 간단)
-IMAGES="order-service product-service cart-service user-service review-service notification-worker frontend"
-WORKER_IP=$(tart ip dev-worker1)
-
-for img in $IMAGES; do
-  docker save ${img}:latest | \
-    sshpass -p admin ssh admin@${WORKER_IP} "sudo ctr -n k8s.io images import -"
-done
-
-# 방법 2: 로컬 레지스트리 구축 (선택)
-# platform 클러스터에 Docker Registry를 배포하고 이미지를 push/pull
-```
-
-### Step 4: Nginx Ingress Controller 설치
-
-```bash
-# 각 앱 클러스터에 Nginx Ingress Controller 설치
-./scripts/install-nginx-ingress.sh dev
-./scripts/install-nginx-ingress.sh staging   # staging 사용 시
-./scripts/install-nginx-ingress.sh prod      # prod 사용 시
-```
-
-### Step 5: 앱 배포 (dev 환경부터)
-
-```bash
-# dev 클러스터에 배포
-./scripts/deploy.sh dev
-
-# 배포 상태 확인
-./scripts/verify.sh dev
-
-# 예상 출력:
-# [INFO]  Pod status:
-# NAME                                READY   STATUS    RESTARTS
-# dev-order-service-xxx               1/1     Running   0
-# dev-product-service-xxx             1/1     Running   0
-# dev-cart-service-xxx                1/1     Running   0
-# dev-user-service-xxx                1/1     Running   0
-# dev-review-service-xxx              1/1     Running   0
-# dev-notification-worker-xxx         1/1     Running   0
-# dev-nginx-static-xxx                1/1     Running   0
-# dev-apache-legacy-xxx               1/1     Running   0
-# dev-postgresql-0                    1/1     Running   0
-# dev-mongodb-0                       1/1     Running   0
-# dev-redis-xxx                       1/1     Running   0
-# dev-rabbitmq-0                      1/1     Running   0
-```
-
-### Step 6: 서비스 접속 확인
-
-```bash
-DEV_IP=$(tart ip dev-master)
-
-# 프론트엔드
-curl http://${DEV_IP}:30080/
-
-# 상품 API (Node.js → MongoDB)
-curl http://${DEV_IP}:30080/api/products
-
-# 주문 생성 (Spring Boot/Tomcat → PostgreSQL → RabbitMQ)
-curl -X POST http://${DEV_IP}:30080/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"user-1","productId":"prod-1","quantity":1,"totalPrice":29.99}'
-
-# 장바구니 (Go → Redis)
-curl -X POST http://${DEV_IP}:30080/api/cart \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"user-1","productId":"prod-1","quantity":2}'
-
-curl http://${DEV_IP}:30080/api/cart/user-1
-
-# 유저 서비스 (Python/FastAPI → PostgreSQL)
-curl -X POST http://${DEV_IP}:30080/api/users/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","email":"test@example.com","password":"pass123"}'
-
-# 리뷰 서비스 (Rust/Actix-web → MongoDB)
-curl -X POST http://${DEV_IP}:30080/api/reviews \
-  -H "Content-Type: application/json" \
-  -d '{"productId":"prod-1","userId":"user-1","rating":5,"comment":"Great!"}'
-
-# 헬스체크
-curl http://${DEV_IP}:30080/healthz
-```
-
-### Step 7: 부하 테스트 (k6)
-
-```bash
-# Smoke 테스트 (1분, 기본 검증)
-./scripts/run-loadtest.sh smoke dev
-
-# Average Load (10분, 일반 트래픽)
-./scripts/run-loadtest.sh average-load dev
-
-# Peak Load (15분, MAU 1천만 피크 시뮬레이션)
-./scripts/run-loadtest.sh peak-load prod
-```
-
-### Step 8: 프로덕션 배포 (HPA + KEDA)
-
-```bash
-# KEDA 설치 (prod 클러스터)
-./scripts/install-keda.sh prod
-
-# prod 배포 (HPA + PDB + KEDA ScaledObject 포함)
-./scripts/deploy.sh prod
-
-# HPA 상태 확인
-kubectl --kubeconfig=../tart-infra/kubeconfig/prod.yaml \
-  get hpa -n ecommerce
-
-# 스트레스 테스트로 HPA 트리거
-./scripts/run-loadtest.sh stress-test prod
-
-# HPA 스케일아웃 관찰 (별도 터미널)
-kubectl --kubeconfig=../tart-infra/kubeconfig/prod.yaml \
-  get hpa -n ecommerce -w
-```
-
-### Step 9: ArgoCD 연동 (GitOps)
-
-```bash
-# ArgoCD에 앱 등록 (platform 클러스터에서)
-kubectl --kubeconfig=../tart-infra/kubeconfig/platform.yaml \
-  apply -f argocd/app-of-apps.yaml
-
-# ArgoCD UI 접속 (platform 클러스터의 ArgoCD NodePort)
-PLATFORM_IP=$(tart ip platform-master)
-echo "ArgoCD UI: http://${PLATFORM_IP}:30443"
-```
-
-### Step 10: 모니터링 확인
-
-```bash
-# Grafana 접속 (platform 클러스터)
-PLATFORM_IP=$(tart ip platform-master)
-echo "Grafana: http://${PLATFORM_IP}:30300"
-
-# Grafana에서 대시보드 임포트:
-#   monitoring/grafana-dashboards/ecommerce-overview.json
-#   monitoring/grafana-dashboards/autoscaling-dashboard.json
-```
-
----
-
-## 8. MAU 1천만 트래픽 시뮬레이션 근거
-
-### 8.1 트래픽 계산
+**MAU 1천만 → RPS 환산**:
 
 ```
 MAU 10,000,000명
@@ -713,122 +384,297 @@ MAU 10,000,000명
 │
 ├── 평균 RPS = 16.65M / 86,400 = ~193 RPS
 ├── 피크 팩터 = 3x (피크 시간대 집중)
-├── 피크 일일 = ~50M req/day
-├── 피크 시간 = 일일 20% = ~10M req/hour = ~2,778 req/min = ~278 RPS
-└── 버스트 피크 = ~500-1000 RPS (이벤트, 세일 등)
+├── 피크 RPS = ~278 RPS
+└── 버스트 피크 = ~500-1000 RPS (이벤트, 세일)
 ```
 
-### 8.2 k6 시나리오 매핑
-
-| 시나리오 | VU | 시간 | 예상 RPS | 시뮬레이션 대상 |
-|---------|-----|------|---------|---------------|
-| `smoke` | 10 | 1분 | ~10 | 엔드포인트 동작 확인 |
-| `average-load` | 200 | 10분 | ~200 | 평일 평균 트래픽 |
-| `peak-load` | 500 | 15분 | ~300 | **MAU 1천만 피크 시간** |
-| `stress-test` | 2000 | 20분 | ~1000+ | 이벤트/세일 버스트, HPA 한계점 |
-| `soak-test` | 200 | 2시간 | ~200 | 장시간 안정성 (메모리 누수, 커넥션 풀) |
-
-### 8.3 트래픽 패턴 (읽기:쓰기 비율)
+**트래픽 분포 (실제 e-commerce 패턴 반영)**:
 
 ```
-실제 e-commerce 트래픽 패턴:
-├── 50% 상품 목록 조회 (GET /api/products)      → Redis 캐시 HIT
-├── 20% 상품 상세 조회 (GET /api/products/:id)  → Redis 캐시 HIT
-├── 15% 장바구니 조작 (POST/GET /api/cart)      → Redis 직접 R/W
-└── 15% 주문 생성 (POST /api/orders)            → DB Write + MQ Publish
-                                                    → notification-worker 트리거
+50% 상품 목록 조회 (GET /api/products)       → Redis 캐시 HIT
+20% 상품 상세 조회 (GET /api/products/:id)   → Redis 캐시 HIT
+15% 장바구니 조작 (POST/GET /api/cart)       → Redis 직접 R/W
+15% 주문 생성 (POST /api/orders)             → DB Write + MQ Publish
+```
+
+**k6 시나리오**:
+
+| 시나리오 | VU | 시간 | 예상 RPS | 목적 |
+|---------|-----|------|---------|------|
+| smoke | 10 | 1분 | ~10 | 엔드포인트 동작 확인 |
+| average-load | 200 | 10분 | ~200 | 평일 평균 트래픽 |
+| peak-load | 500 | 15분 | ~300 | MAU 1천만 피크 시간 |
+| stress-test | 2000 | 20분 | ~1000+ | HPA 한계점 탐색, 이벤트/세일 버스트 |
+| soak-test | 200 | 2시간 | ~200 | 메모리 누수, 커넥션 풀 고갈 탐지 |
+
+**SLA 기준**:
+- P95 응답시간 < 500ms
+- P99 응답시간 < 1s
+- 에러율 < 1%
+
+---
+
+## 5. VM 리소스 배분
+
+총 **10개 VM**, vCPU 합계 **21 cores**, RAM 합계 **약 67 GB**
+
+> 호스트 16코어에 vCPU 21개 할당 (약 1.3:1 오버커밋).
+> Tart는 Apple Virtualization Framework 기반이라 경량이며,
+> 모든 VM을 동시에 기동해도 호스트에 충분한 여유가 있음.
+
+| 클러스터 | VM 이름 | Role | vCPU | RAM | 용도 |
+|---------|---------|------|------|-----|------|
+| **platform** | platform-master | master | 2 | 4 GB | K8s control plane |
+| | platform-worker1 | worker | 3 | 12 GB | Prometheus, Grafana, ArgoCD |
+| | platform-worker2 | worker | 2 | 8 GB | Jaeger, Loki |
+| **dev** | dev-master | master | 2 | 4 GB | K8s control plane |
+| | dev-worker1 | worker | 2 | 8 GB | 앱 전체 (단일 레플리카) |
+| **staging** | staging-master | master | 2 | 4 GB | K8s control plane |
+| | staging-worker1 | worker | 2 | 8 GB | 앱 서비스 (2 레플리카) |
+| **prod** | prod-master | master | 2 | 3 GB | K8s control plane |
+| | prod-worker1 | worker | 2 | 8 GB | 앱 서비스 (HA, HPA) |
+| | prod-worker2 | worker | 2 | 8 GB | 앱 서비스 (HA, HPA) |
+
+**운영 모드 가이드**:
+
+```
+풀 프로덕션:    platform + prod (13C/43G) → 실제 운영 시뮬레이션
+개발 + 운영:    platform + dev + prod (17C/55G)
+전체 파이프라인: 전체 10VM (21C/67G) → 부하 테스트 시
+최소 기동:      dev만 (4C/12G) → 앱 개발/디버깅
+```
+
+### Pod 리소스 버짓
+
+| 서비스 | CPU req/limit | Memory req/limit | prod 레플리카 |
+|--------|--------------|-----------------|--------------|
+| nginx-static | 50m / 200m | 64Mi / 128Mi | 2-6 (HPA) |
+| apache-legacy | 50m / 200m | 64Mi / 128Mi | 1 |
+| order-service | 100m / 500m | 256Mi / 512Mi | 3-10 (HPA) |
+| product-service | 100m / 400m | 128Mi / 256Mi | 3-10 (HPA) |
+| cart-service | 50m / 300m | 64Mi / 128Mi | 3-8 (HPA) |
+| user-service | 50m / 300m | 128Mi / 256Mi | 3-8 (HPA) |
+| review-service | 30m / 200m | 32Mi / 64Mi | 2-6 (HPA) |
+| notification-worker | 50m / 200m | 128Mi / 256Mi | 1-10 (KEDA) |
+| postgresql | 100m / 500m | 256Mi / 512Mi | 1 |
+| mongodb | 100m / 500m | 256Mi / 512Mi | 1 |
+| redis | 50m / 200m | 64Mi / 256Mi | 1 |
+| rabbitmq | 100m / 300m | 256Mi / 512Mi | 1 |
+
+---
+
+## 6. 기술 스택 전체
+
+| 계층 | 기술 | 버전 | 역할 |
+|------|------|------|------|
+| **WEB** | Nginx | 1.24 | 리버스 프록시, 정적 파일 서빙, 응답 캐시 |
+| **WEB** | Apache HTTPD | 2.4 | 레거시 호환 (mod_proxy, mod_balancer) |
+| **WAS** | Spring Boot / Tomcat | 3.2 / 10 | 주문 서비스 (JPA, AMQP, Actuator) |
+| **WAS** | Express (Node.js) | 20 LTS | 상품 서비스 (Mongoose, Redis 캐시) |
+| **WAS** | net/http (Go) | 1.22 | 장바구니 서비스 (Redis Hash) |
+| **WAS** | FastAPI (Python) | 3.12 | 사용자 서비스 (async SQLAlchemy, JWT) |
+| **WAS** | Actix-web (Rust) | 1.77 | 리뷰 서비스 (MongoDB Aggregation) |
+| **LB** | HAProxy | 2.9 | L4/L7 로드밸런싱, stick-table Rate Limiting |
+| **SQL** | PostgreSQL | 16 | 주문/유저 (ACID 트랜잭션) |
+| **NoSQL** | MongoDB | 7 | 상품/리뷰 (스키마리스 문서형) |
+| **Cache** | Redis | 7 | 캐시, 세션, 장바구니 (인메모리) |
+| **MQ** | RabbitMQ | 3 | Topic Exchange 이벤트 브로커 |
+| **Logging** | EFK Stack | ES 8.12 | 중앙 로그 수집 (Fluentd → ES → Kibana) |
+| **APM** | Scouter | 2.20 | Java WAS 성능 모니터링 |
+| **VM** | Tart | latest | Apple Silicon 네이티브 경량 VM |
+| **K8s** | kubeadm | - | 베어메탈 K8s 클러스터 부트스트랩 |
+| **CNI** | Cilium | - | eBPF 기반 고성능 네트워킹 |
+| **배포** | Kustomize | - | base/overlay 환경별 배포 |
+| **배포** | Helm | - | 파라미터화된 차트 패키징 |
+| **GitOps** | ArgoCD | - | App-of-Apps, 자동/수동 Sync |
+| **Mesh** | Istio | - | mTLS, 서킷브레이커, 재시도, 카나리 |
+| **모니터링** | Prometheus + Grafana | - | 메트릭 수집 + 대시보드 + SLA 알림 |
+| **스케일링** | HPA / KEDA | v2 / - | CPU 기반 / 이벤트 기반 오토스케일링 |
+| **부하테스트** | k6 | - | 5단계 트래픽 시뮬레이션 |
+
+---
+
+## 7. 디렉토리 구조
+
+```
+devops_dummpy/
+├── README.md
+├── apps/                              # 마이크로서비스 소스코드
+│   ├── order-service/                 # Java 17 / Spring Boot 3.2 / Tomcat 10
+│   ├── product-service/               # Node.js 20 / Express
+│   ├── cart-service/                   # Go 1.22 / net/http
+│   ├── user-service/                  # Python 3.12 / FastAPI
+│   ├── review-service/                # Rust 1.77 / Actix-web
+│   ├── notification-worker/           # Node.js 20 / RabbitMQ Consumer
+│   └── frontend/                      # Nginx Static Site
+│
+├── manifests/                         # Kubernetes 매니페스트
+│   ├── base/                          # Kustomize 베이스 (15개 리소스)
+│   ├── overlays/{dev,staging,prod}/   # 환경별 오버레이
+│   └── istio/                         # 서비스 메시 설정
+│
+├── helm/devops-ecommerce/             # Helm 차트
+├── argocd/                            # GitOps (App-of-Apps)
+├── loadtest/k6/                       # k6 부하 테스트 시나리오
+├── monitoring/                        # ServiceMonitor, PrometheusRule, Grafana 대시보드
+├── scripts/                           # 자동화 스크립트
+├── blogs/                             # 단계별 구현 가이드 블로그
+└── docs/                              # 설계 문서, 실습 가이드
 ```
 
 ---
 
-## 9. 프로덕션 기능 상세
+## 8. 사전 준비
 
-### 9.1 오토스케일링
+### 8.1 호스트 요구사항
 
-| 방식 | 대상 | 트리거 | 범위 |
-|------|------|--------|------|
-| **HPA** | order-service | CPU > 50%, Mem > 70% | 3 → 10 레플리카 |
-| **HPA** | product-service | CPU > 50%, Mem > 70% | 3 → 10 레플리카 |
-| **HPA** | cart-service | CPU > 50% | 3 → 8 레플리카 |
-| **HPA** | user-service | CPU > 50%, Mem > 70% | 3 → 8 레플리카 |
-| **HPA** | review-service | CPU > 50% | 2 → 6 레플리카 |
-| **HPA** | nginx-static | CPU > 60% | 2 → 6 레플리카 |
-| **KEDA** | notification-worker | RabbitMQ 큐 > 5개 (3개 큐) | 1 → 10 레플리카 |
-| **PDB** | order/product/cart/user | - | minAvailable: 2 |
-| **PDB** | review/nginx/postgresql/rabbitmq | - | minAvailable: 1 |
+- Apple Silicon Mac (M1/M2/M3/M4)
+- RAM: 64GB 이상 권장 (128GB 최적)
+- 디스크 여유: 300GB 이상
 
-HPA 스케일링 정책:
-- **Scale Up**: 30초 안정화, 60초마다 최대 3 Pod 또는 50% 증가 (큰 쪽 적용)
-- **Scale Down**: 300초 안정화 (급격한 축소 방지), 120초마다 1 Pod 감소
-- **topologySpreadConstraints**: maxSkew 1, DoNotSchedule (prod)
-- **podAntiAffinity**: 같은 노드에 동일 서비스 배치 최소화
+### 8.2 필수 소프트웨어
 
-### 9.2 서킷브레이커 (Istio)
+```bash
+# VM 가상화
+brew install cirruslabs/cli/tart
 
-```yaml
-outlierDetection:
-  consecutive5xxErrors: 3    # 연속 5xx 3회 시
-  interval: 10s              # 10초 간격 검사
-  baseEjectionTime: 30s      # 30초간 제거
-  maxEjectionPercent: 50     # 최대 50% 엔드포인트 제거
+# Kubernetes 도구
+brew install kubectl helm kustomize
+
+# 이미지 빌드
+brew install docker
+
+# 부하 테스트
+brew install k6
+
+# VM SSH 자동화
+brew install esolitos/ipa/sshpass
+
+# 설치 확인
+tart --version && kubectl version --client && helm version && k6 version
 ```
 
-### 9.3 SLA/SLO 알림 규칙
+### 8.3 인프라 구축 (Tart VM + K8s 클러스터)
 
-| 알림 | 조건 | 심각도 |
-|------|------|--------|
-| OrderServiceHighLatency | P99 > 1초 (5분 지속) | warning |
-| HighErrorRate | 에러율 > 1% (5분 지속) | critical |
-| PodRestartLoop | 1시간 내 3회 이상 재시작 | warning |
-| HPAMaxedOut | 최대 레플리카 5분 이상 유지 | warning |
-| RabbitMQQueueBacklog | 큐 100개 초과 (5분 지속) | warning |
+이 프로젝트는 Tart VM 위에 kubeadm으로 구축된 K8s 클러스터가 필요하다.
+전체 구축 과정은 [blogs/02-tart-vm-kubernetes.md](blogs/02-tart-vm-kubernetes.md)에 복사-붙여넣기 가능한 명령어로 상세히 기술되어 있다.
 
----
+요약하면:
 
-## 10. 블로그 작성 가이드
+```bash
+# 1. Tart VM 10대 생성 (Ubuntu 24.04 ARM64)
+tart pull ghcr.io/cirruslabs/ubuntu:latest
+for vm in platform-master platform-worker1 platform-worker2 \
+          dev-master dev-worker1 staging-master staging-worker1 \
+          prod-master prod-worker1 prod-worker2; do
+  tart clone ghcr.io/cirruslabs/ubuntu:latest "$vm"
+done
 
-이 프로젝트를 블로그 시리즈로 작성할 때 추천하는 구성:
+# 2. VM 기동 (--net-softnet-allow: VM 간 통신 필수)
+for vm in ...; do
+  tart run "$vm" --no-graphics --net-softnet-allow=0.0.0.0/0 &
+done
 
-| 편 | 제목 (예시) | 핵심 내용 |
-|----|-----------|----------|
-| 1편 | 프로젝트 소개: MAU 1천만 서비스를 로컬에서 구현하기 | 동기, 아키텍처 설계, 기술 선택 이유 |
-| 2편 | Tart VM으로 멀티 K8s 클러스터 구축하기 | tart-infra 프로젝트, VM 리소스 배분, kubeadm |
-| 3편 | 마이크로서비스 설계: 왜 5가지 언어를 썼는가 | Java/Node.js/Go/Python/Rust 선택 이유, DB 분리 전략 |
-| 4편 | Nginx + Apache: 웹서버 이중화와 리버스 프록시 | WEB 계층 구성, rate limiting, 레거시 호환 |
-| 5편 | 5가지 WAS 심층 분석: Tomcat + Express + Go + FastAPI + Actix | 각 WAS 특성, 성능 비교, Prometheus 메트릭 |
-| 6편 | PostgreSQL + MongoDB + Redis: 멀티 DB 전략 | SQL vs NoSQL 사용 분기, Redis 캐시 전략 |
-| 7편 | RabbitMQ와 이벤트 기반 아키텍처 | 주문 이벤트 흐름, KEDA 연동 |
-| 8편 | Kustomize + Helm: K8s 배포 전략 비교 | base/overlay 패턴, Helm 파라미터화 |
-| 9편 | ArgoCD GitOps: App-of-Apps 패턴 | 멀티 환경 배포 자동화, sync 정책 |
-| 10편 | Istio 서비스 메시: 서킷브레이커와 mTLS | 장애 격리, 보안 통신, 카나리 배포 |
-| 11편 | HPA + KEDA: 탄력적 오토스케일링 | CPU 기반 vs 이벤트 기반, 스케일링 관찰 |
-| 12편 | k6 부하 테스트: MAU 1천만 시뮬레이션 | 트래픽 계산, 시나리오 설계, 결과 분석 |
-| 13편 | Prometheus + Grafana: SRE 대시보드 구축 | ServiceMonitor, 알림 규칙, 대시보드 |
-| 14편 | HAProxy L4/L7 로드밸런싱과 Rate Limiting | stick-table, Stats UI, 트래픽 제어 |
-| 15편 | EFK Stack으로 중앙 로그 수집 | Elasticsearch + Fluentd + Kibana 구축 |
-| 16편 | 트래픽 대응 전략: 캐시, 백프레셔, 서킷브레이커 | 멀티레벨 캐시, KEDA 백프레셔, Istio 서킷브레이커 |
-| 17편 | 트러블슈팅 사례 모음 | OOM, 커넥션 풀, HPA 미작동 등 실제 이슈 |
-| 18편 | 회고: 이 프로젝트에서 배운 것들 | 개선점, 실무 vs 포트폴리오 차이 |
+# 3. 각 VM에 containerd + kubeadm 설치 (SSH)
+# 4. kubeadm init/join으로 4개 클러스터 부트스트랩
+# 5. Cilium CNI 설치 (kubeProxyReplacement=true)
+# 6. kubeconfig를 kubeconfig/ 디렉토리에 저장
 
-### 블로그 작성 팁
+# 구축 후 확인
+kubectl --kubeconfig=kubeconfig/dev.yaml get nodes
+kubectl --kubeconfig=kubeconfig/prod.yaml get nodes
+```
 
-- 각 편마다 **스크린샷**을 첨부 (Grafana 대시보드, ArgoCD UI, k6 결과, `kubectl get pods` 출력)
-- 장애 시나리오를 **의도적으로 만들고 해결하는 과정**을 기록하면 매우 인상적
-- `tart list` → VM 기동 → `kubectl get nodes` → 앱 배포 → 부하 테스트 → HPA 확장 순서로 진행하면 자연스러운 스토리라인
+상세 절차는 blogs/02 편을 참고한다.
 
 ---
 
-## 11. 관련 프로젝트
+## 9. 재현 가이드 (Quick Start)
 
-| 프로젝트 | 설명 | 핵심 기술 |
-|---------|------|----------|
-| [`tart-infra`](../tart-infra/) | Tart VM + K8s 클러스터 프로비저닝 | Terraform, kubeadm, Cilium, Prometheus |
-| [`middle_ware`](../middle_ware/) | Docker Compose WEB/WAS 미들웨어 | Nginx, Tomcat, MySQL, Keycloak, Scouter |
-| **`devops_dummpy`** | MAU 1천만 E-Commerce 플랫폼 | K8s, Helm, ArgoCD, Istio, HPA, KEDA, k6 |
+### Step 1: Docker 이미지 빌드
+
+```bash
+# 7개 앱 이미지를 ARM64로 빌드 (약 10-15분)
+./scripts/build-images.sh
+
+# 빌드 결과 확인
+docker images | grep -E "order|product|cart|user|review|notification|frontend"
+```
+
+### Step 2: K8s 노드에 이미지 로드
+
+```bash
+# docker save → ssh → containerd import
+WORKER_IP=$(tart ip dev-worker1)
+for img in order-service product-service cart-service user-service review-service notification-worker frontend; do
+  docker save ${img}:latest | \
+    sshpass -p admin ssh admin@${WORKER_IP} "sudo ctr -n k8s.io images import -"
+done
+```
+
+### Step 3: Nginx Ingress Controller 설치
+
+```bash
+./scripts/install-nginx-ingress.sh dev
+```
+
+### Step 4: 앱 배포
+
+```bash
+# dev 환경 배포
+./scripts/deploy.sh dev
+
+# 배포 상태 확인
+./scripts/verify.sh dev
+```
+
+### Step 5: API 동작 확인
+
+```bash
+DEV_IP=$(tart ip dev-master)
+
+# 상품 조회
+curl http://${DEV_IP}:30080/api/products
+
+# 주문 생성
+curl -X POST http://${DEV_IP}:30080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"user-1","productId":"prod-1","quantity":1,"totalPrice":29.99}'
+
+# 장바구니
+curl -X POST http://${DEV_IP}:30080/api/cart \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"user-1","productId":"prod-1","quantity":2}'
+```
+
+### Step 6: 부하 테스트
+
+```bash
+# Smoke 테스트
+./scripts/run-loadtest.sh smoke dev
+
+# MAU 1천만 피크 시뮬레이션 (prod 환경 권장)
+./scripts/run-loadtest.sh peak-load prod
+```
+
+### Step 7: 프로덕션 배포 (HPA + KEDA)
+
+```bash
+# KEDA 설치
+./scripts/install-keda.sh prod
+
+# prod 배포
+./scripts/deploy.sh prod
+
+# HPA 스케일아웃 관찰 (별도 터미널)
+kubectl --kubeconfig=kubeconfig/prod.yaml get hpa -n ecommerce -w
+
+# 스트레스 테스트로 HPA 트리거
+./scripts/run-loadtest.sh stress-test prod
+```
 
 ---
 
-## 12. 라이선스
+## 10. 라이선스
 
 이 프로젝트는 학습/포트폴리오 목적으로 제작되었습니다.
-# devops_dummy

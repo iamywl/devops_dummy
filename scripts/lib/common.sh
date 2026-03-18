@@ -5,8 +5,14 @@ set -euo pipefail
 # ─── Paths ───
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TART_INFRA_ROOT="$(cd "$PROJECT_ROOT/../tart-infra" && pwd)"
-KUBECONFIG_DIR="${TART_INFRA_ROOT}/kubeconfig"
+# kubeconfig는 프로젝트 내부 또는 tart-infra에서 탐색
+if [[ -d "$PROJECT_ROOT/kubeconfig" ]]; then
+  KUBECONFIG_DIR="${PROJECT_ROOT}/kubeconfig"
+elif [[ -d "$PROJECT_ROOT/../tart-infra/kubeconfig" ]]; then
+  KUBECONFIG_DIR="$(cd "$PROJECT_ROOT/../tart-infra/kubeconfig" && pwd)"
+else
+  KUBECONFIG_DIR="${PROJECT_ROOT}/kubeconfig"
+fi
 
 # ─── Colors ───
 RED='\033[0;31m'
