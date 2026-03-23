@@ -3,6 +3,43 @@
 > Apple Silicon Mac 위에 Tart VM + Kubernetes 멀티클러스터를 구축하고,
 > **실제 MAU 1천만 규모의 트래픽 패턴을 시뮬레이션하여 오토스케일링이 작동하는 것을 증명**하는 프로젝트
 
+## 프로젝트 소개
+
+로컬 Apple Silicon Mac 한 대에서 **프로덕션급 Kubernetes 인프라 전체를 구축**하고, MAU 1천만 규모 e-commerce 트래픽을 시뮬레이션하는 DevOps 포트폴리오 프로젝트입니다.
+
+### 핵심 특징
+
+- **멀티클러스터 구성** — Tart VM 10대 위에 dev / staging / prod / platform 4개 클러스터 운영
+- **폴리글랏 마이크로서비스** — Java, Node.js, Go, Python, Rust 5개 언어로 구현한 7개 서비스
+- **Polyglot Persistence** — PostgreSQL(ACID) + MongoDB(Document) + Redis(Cache/Session) 서비스 특성별 DB 분리
+- **이벤트 드리븐 아키텍처** — RabbitMQ Topic Exchange + KEDA 큐 기반 오토스케일링
+- **프로덕션 수준 운영** — HPA/KEDA 오토스케일링, Istio 서비스 메시(mTLS, 서킷브레이커), PDB 가용성 보장
+- **완전한 관측성** — Prometheus + Grafana 메트릭, EFK 로그 수집, Scouter APM, SLA 알림
+- **GitOps 자동화** — ArgoCD App-of-Apps 패턴, Kustomize base/overlay 환경별 배포
+- **부하 검증 완료** — k6 5단계 시나리오(smoke → average → peak → stress → soak)로 오토스케일링 동작 증명
+
+### 기술 스택 한눈에 보기
+
+| 영역 | 기술 |
+|------|------|
+| 컨테이너 오케스트레이션 | Kubernetes (kubeadm), Cilium CNI |
+| 가상화 | Tart VM (Apple Virtualization Framework) |
+| 서비스 메시 | Istio (Envoy sidecar, mTLS) |
+| 모니터링 | Prometheus, Grafana, EFK Stack, Scouter APM |
+| GitOps / 배포 | ArgoCD, Kustomize, Helm |
+| 오토스케일링 | HPA (CPU 기반), KEDA (이벤트 기반) |
+| 로드밸런싱 | Nginx Ingress, HAProxy, Apache HTTPD |
+| 데이터 계층 | PostgreSQL 16, MongoDB 7, Redis 7, RabbitMQ 3 |
+| 부하 테스트 | k6 |
+
+### 인프라 규모
+
+```
+4개 K8s 클러스터 / 10개 VM / 21 vCPU / 67GB RAM
+7개 마이크로서비스 / 5개 언어 / 3개 DB / 1개 MQ
+k6 피크 부하: 500 VU → ~300 RPS → HPA 스케일아웃 자동 동작
+```
+
 ---
 
 ## 1. 프로젝트 개요
